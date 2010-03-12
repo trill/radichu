@@ -1,0 +1,9 @@
+<mx:TitleWindow
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	title="clap"
+>
+	<mx:TextInput id="claptext" editable="true" enabled="true" maxChars="140" displayAsPassword="false" width="100%"/>
+	<mx:TextArea id="claplabel" text="" width="100%" editable="false"/>
+	<mx:Button id="send" label="Send to twitter" />
+
+</mx:TitleWindow>

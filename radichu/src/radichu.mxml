@@ -1,0 +1,816 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" 
+	creationComplete="init();" backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#747474, #4A4B4B]">
+
+	<mx:Script>
+		<![CDATA[
+			import air.update.events.UpdateEvent;
+			import flash.text.engine.EastAsianJustifier;
+			import com.adobe.serialization.json.JSONDecoder;
+			import mx.controls.sliderClasses.Slider;
+			import mx.utils.Base64Encoder;
+			import mx.messaging.channels.StreamingAMFChannel;
+			import mx.validators.IValidatorListener;
+			import mx.collections.IViewCursor;
+			import mx.events.FlexEvent;
+			import mx.collections.ArrayCollection;
+			import flash.net.URLLoader;
+			import flash.net.URLRequest;
+			import flash.utils.escapeMultiByte;
+			import mx.controls.Image;
+			import mx.core.IMXMLObject;
+			import mx.events.SliderEvent;
+			import mx.managers.PopUpManager;
+			import flash.filesystem.File;
+			import com.adobe.serialization.json.*;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+    		import flash.events.IOErrorEvent;
+    		import air.update.ApplicationUpdaterUI;
+    
+			[Bindable]
+			private var tumblist:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var titledata:String = new String("");
+			
+			private var tubePlayer:Object;
+			private var loader:Loader;
+
+			private var twitterid:String = new String();
+			private var twitterpass:String = new String();
+			
+			private var request:URLRequest;
+			private var urlloader:URLLoader;
+			private var responseXML:XML;
+			private var wns:Namespace = new Namespace("http://www.w3.org/2005/Atom");
+			private var sock:Socket = new Socket();
+			private const regtwit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;	
+			private const reginit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;
+			private const regtwiterr:RegExp = /^HTTP\/1\.1 401 Unauthorized/;
+			private var urlreq:URLRequest = new URLRequest();
+			private var urlload:URLLoader = new URLLoader();
+
+			private var initmusicList:ArrayCollection = new ArrayCollection();
+			private var initmusicCursor:IViewCursor;
+			private const maxTumb:int = 16;
+			private var playedMusic:ArrayCollection = new ArrayCollection();
+			private var quedMusic:ArrayCollection = new ArrayCollection();
+			private var playingobj:Object = new Object();
+			private var initflg:Boolean = true;
+			private var conf:config;
+			private var clp:clap;
+			private var streamflg:Boolean = false;
+			private var sendload:URLLoader;
+			private var service:HTTPService;
+			private var startflg:Boolean = false;
+			private var saveTitle:String = new String();
+			private var saveText1:String = new String();
+			private var saveText2:String = new String();
+			private var vol:int = 80;
+			private var urllist:ArrayCollection = new ArrayCollection();
+			private var appUpdater:ApplicationUpdaterUI = new ApplicationUpdaterUI();
+
+			
+			private function init():void
+			{
+				
+//				appUpdater.configurationFile = new File("app:/updateConfig.xml"); 
+				appUpdater.updateURL = "http://github.com/trill/radichu/raw/master/radichu/updateDescriptor.xml";
+				appUpdater.delay = 1;
+				appUpdater.isCheckForUpdateVisible = false;
+				appUpdater.addEventListener(UpdateEvent.INITIALIZED, update_initialized);
+				appUpdater.initialize();
+				trace(appUpdater.toString());				
+
+				try{
+					loader = new Loader();
+					loader.contentLoaderInfo.addEventListener(Event.INIT, loaderInit);
+					loader.load(new URLRequest("http://www.youtube.com/apiplayer?version=3"));
+				} catch (err:Error) {
+					trace(err);
+				}
+				
+				this.addEventListener(Event.CLOSING, appExit);
+
+				getInitialRequests();
+
+			   var so:SharedObject = SharedObject.getLocal("appData");
+				if (so.size == 0){
+					trace("create sharedObject");
+					so.data.x = 100;
+					so.data.y = 100;
+					so.data.vol = 80;
+					so.data.twitterid = new String();
+					so.data.twitterpass = new String();
+				} else {
+    				if( so.data.x < Capabilities.screenResolutionX && so.data.y < Capabilities.screenResolutionY ){
+	        			this.nativeWindow.x = so.data.x;
+    	    			this.nativeWindow.y = so.data.y;
+    				}else{
+        				this.nativeWindow.x = 100;
+        				this.nativeWindow.y = 100;
+			    	}
+			    	twitterid = new String(so.data.twitterid);
+			    	twitterpass = new String(so.data.twitterpass);
+			    	vol = so.data.vol;
+							 
+				}
+			    
+				if (twitterid!=""){
+					streamflg = true;
+					connectStreamingAPI();
+				} else {
+					onConfBtn();
+				}
+				
+				volslider.value = vol;
+			}
+			
+			private function update_initialized(evt:Event):void{
+				trace("appUpdater.checkNow");
+				appUpdater.checkNow();
+			}
+
+			private function appExit(evt:Event):void{
+				trace("appExit : " + evt);
+				    var so:SharedObject = SharedObject.getLocal("appData");
+					so.data.twitterid = twitterid;
+					so.data.twitterpass = twitterpass;
+				    so.data.x = this.nativeWindow.x;
+				    so.data.y = this.nativeWindow.y;
+				    so.data.vol = this.vol;
+    				so.flush();
+			}
+			
+			private function ferr(evt:Event):void {
+				trace("ferr : " + evt.toString());
+				
+				
+			}
+			
+			private function fread(evt:Event):void {
+				trace("file read ok");
+			}
+			
+			private function getInitialRequests():void{
+				var header:URLRequestHeader = new URLRequestHeader("pragma", "no-cache");
+				urlreq.url = "http://search.twitter.com/search.json?q=%23radioooo%2dkichi&rpp=100";
+				urlreq.useCache = false;
+				urlreq.requestHeaders.push(header);
+				urlload.addEventListener(Event.COMPLETE, seacomp);
+				urlload.addEventListener(IOErrorEvent.IO_ERROR, seaerr);
+				urlload.load(urlreq);
+				
+			}
+			
+			private function seacomp(event:Event):void{
+				trace(event);
+				
+				var obj:Object = JSON.decode(urlload.data);
+				
+				var n:int = obj["results"].length;
+				trace("init data = " + n);
+				for (var i:uint = 0; i < n; i++){
+					var str:String = new String(obj["results"][i]["text"]);
+					var result:Array = reginit.exec(str);
+					if (result != null){
+						trace(result);
+						var tdata:Object = new Object();
+						tdata["user"] = obj["results"][i]["from_user"];
+						tdata["usericon"] = obj["results"][i]["profile_image_url"];
+						initmusicList.addItem({label:result[1], twdata:tdata});
+					} else {
+						trace("no match: " + str);
+					}
+				}
+				trace("length = " + initmusicList.length);
+				initmusicCursor = initmusicList.createCursor();
+				while(!initmusicCursor.beforeFirst){
+					initmusicCursor.movePrevious();
+				}
+				initmusicCursor.moveNext();
+				trace("initCuror = " + initmusicCursor.current.label);
+
+				getMusicDetail();
+			}
+			
+			private function playStart():void{
+				if (!tubePlayer) return;
+				if (tumblist.length == 0) return;
+
+				playNextMusic();
+			}
+			private function seaerr(event:Event):void{
+				trace(event);
+			}
+			
+			private function connectStreamingAPI():void{
+
+				
+				sock.addEventListener(Event.CONNECT, connectHandler);
+			    sock.addEventListener(IOErrorEvent.IO_ERROR, function():void{trace("ERROR");});
+    			sock.addEventListener(ProgressEvent.SOCKET_DATA, handleData);
+    			trace("connect to stream.twitter.com");
+    			sock.connect("stream.twitter.com", 80);
+			}
+
+			private function connectHandler(event:Event):void{
+				trace("connectHandler");
+				var urlvar:URLVariables = new URLVariables();
+//				urlvar["track"] = "#radioyoutube";
+				urlvar["track"] = "#radioooo-kichi";
+				
+				var enc:Base64Encoder = new Base64Encoder();
+				enc.encodeUTFBytes(twitterid + ":" + twitterpass);
+				
+			    sock.writeUTFBytes("POST /1/statuses/filter.json HTTP/1.1\n");
+			    sock.writeUTFBytes("Host: stream.twitter.com\n");
+			    var auth:String = new String("Authorization: Basic " + enc.flush() + "\n");
+			    
+				sock.writeUTFBytes(auth);
+
+                var data:String = urlvar.toString();
+                var length:int = data.length;
+
+                sock.writeUTFBytes('Content-Type: application/x-www-form-urlencoded\n');
+                sock.writeUTFBytes('Content-Length: ' + length + '\n');
+                sock.writeUTFBytes('\n');
+                sock.writeUTFBytes(data);
+    			sock.flush();
+			}
+
+			private function handleData(event:ProgressEvent):void{
+				var tx:String = new String(sock.readUTFBytes(sock.bytesAvailable));
+				var auth:Array = tx.match(regtwiterr);
+				if (auth != null){
+					trace("twitter auth err");
+					onConfBtn();
+					sock.close();
+					return;
+				}
+				
+				var text:Array = tx.match(regtwit);
+				var regnewtwit:RegExp = /{.*}/;
+    			if(text == null || text[1] == null) return;
+    			var arg:Array = tx.match(regnewtwit);
+    			if (arg == null) return;
+    			var obj:Object = JSON.decode(arg[0]);
+    			trace("text: " + text[1]);
+    			addMusicData(text[1],obj);
+			}
+
+			private function closeConnection():void{
+
+			    sock.close();
+			}
+
+			private function getMusicDetail():void{
+				trace("getMusicDetail: " + initmusicCursor.afterLast);
+				if(!initmusicCursor.afterLast && (tumblist.length < 16)){
+					getYoutubeDetail(initmusicCursor.current.label,initmusicCursor.current.twdata, false);
+					initmusicCursor.moveNext();
+				} else {
+					while(!initmusicCursor.afterLast){
+						quedMusic.addItem(initmusicCursor.current);
+						initmusicCursor.moveNext();
+					}
+					trace("tumblist.length = " + tumblist.length);
+					trace("quedMusic.length = " + quedMusic.length);
+					initflg = false;
+				}
+				
+				if (!startflg){
+					playStart();
+				}
+			}
+			
+			private function getYoutubeDetail(id:String, obj:Object, flg:Boolean=true):void{
+				trace("getYoutubeDetail: " + id);
+
+				urllist.addItem({id:id, obj:obj, flg:flg});
+				
+				if (urllist.length > 1){
+					trace("getYoutubeDetail: id was qued.");
+					return;
+				}
+				getYoutubeDetail2();
+			}
+			
+			private function getYoutubeDetail2():void {
+
+				var url:String;
+				url = "http://gdata.youtube.com/feeds/api/videos/"+urllist[0].id;
+
+				request = new URLRequest(url);
+				urlloader = new URLLoader(request);
+				urlloader.addEventListener(Event.COMPLETE, urlloaderComplete);
+				urlloader.addEventListener(IOErrorEvent.IO_ERROR, urlloaderioerror);
+			}
+			
+			private function urlloaderComplete(e:Event):void
+			{
+				trace("urlloadercomp" + e);
+
+
+				var id:String = new String();
+				var str:String = new String(urlloader.data);
+				var pa:RegExp = /<id>http:\/\/gdata\.youtube\.com\/feeds\/api\/videos\/(.*)<\/id>/;
+				var w:Array = pa.exec(str);
+				if (w){
+					id = new String(w[1].toString());
+				} else {
+					trace("w=null : no <id>");
+					urlloaderend();
+					return;
+				}
+				var pat:RegExp = /<media:title type='plain'>(.*)<\/media:title>/;
+				var x:Array = pat.exec(str);
+				var title:String;
+				if (x){
+					title = new String(unescape(x[1].toString()));
+				} else {
+					trace("x=null");
+					urlloaderend();
+					return;
+				}
+				var pa2:RegExp = /<yt:noembed\/>/;
+				var y:Array = pa2.exec(str);
+				if (y){
+					trace("****** no embed ****** : " + id);
+					this.status = id + " by " + urllist[0].obj["user"] + ": no embed";
+					urlloaderend();
+					return;
+				}
+				var pat2:RegExp = /<media:thumbnail url='(.*?)' height='\d*' width='\d*' time='\d\d:\d\d:\d\d.*?'\/>/gi;
+				var result:Array = pat2.exec(str);
+				var tumburl:ArrayCollection = new ArrayCollection();
+				while (result != null)
+				{
+				    tumburl.addItem(result[1].toString());
+				    result = pat2.exec(str);
+				}
+				trace(tumburl);
+				if (tumburl == null) {
+					trace("noresult: " + str);
+					urlloaderend();
+				}
+				if (urllist[0].flg == true){
+					tumblist.addItemAt({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj},0);
+					trace("add imageurl at top");
+				} else {
+					tumblist.addItem({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj});
+					trace("add imageurl at last");
+				}
+
+				urlloaderend();
+			}
+			
+			private function urlloaderioerror(e:Event):void{
+				trace(e);
+				
+				urlloaderend();
+
+			}
+
+			private function urlloaderend():void{
+				if (initflg){
+					getMusicDetail();
+				}
+				urllist.removeItemAt(0);
+				if (urllist.length != 0){
+					getYoutubeDetail2();
+				}
+			}
+			
+			private function loaderInit(evt:Event):void
+			{
+				youtubeBox.rawChildren.addChild(loader);
+				loader.content.addEventListener("onReady", playerReady);
+				loader.content.addEventListener("onError", playerError);
+				loader.addEventListener("onError", playerError);
+				loader.content.addEventListener("onStateChange", playerStateChange);
+				loader.content.addEventListener("onPlaybackQualityChange", playerVideoPlaybackQualityChange);
+			}
+
+			private function playerReady(evt:Event):void
+			{
+
+				trace("player ready");
+				tubePlayer = loader.content;
+				tubePlayer.setSize(youtubeBox.width - 6, youtubeBox.height - 6);
+				tubePlayer.x = 3;
+				tubePlayer.y = 3;
+				youtubeBox.addEventListener(Event.RESIZE,stageResize);
+				var appWin:NativeWindow = this.stage.nativeWindow;
+	
+				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
+				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
+				
+				tubePlayer.setVolume(vol);
+				playStart();
+			}
+			private function mouseWheel(evt:MouseEvent):void{
+				trace("MouseWheel: " + evt);
+				if (btnMute.selected) return;
+				 
+				var v:int = volslider.value;
+				if (evt.delta > 0){
+					v += 10;
+				} else {
+					v -= 10;
+				}
+				if (v > 100){
+					v = 100;
+				}
+				if (v < 0){
+					v = 0;
+				}
+				volslider.value = v;
+				if (startflg){
+					vol = v;
+					tubePlayer.setVolume(v);
+				}
+			}
+
+			private function stageResize(evt:Event):void
+			{
+				youtubeBox.validateNow();
+				tubePlayer.setSize(youtubeBox.width, youtubeBox.height);
+				trace("Resize!" + youtubeBox.width + ":" + youtubeBox.height);
+			}
+			private function playerError(evt:Event):void
+			{
+
+				trace("player error:$$$$$$$$$$$$$$$$$$$\n" + Object(evt).data);
+				
+				playNextMusic();
+			}
+			
+			private function playerStateChange(evt:Event):void
+			{
+
+				
+				switch ( Object(evt).data ) {
+					case -1:	// not start plaing
+					break;
+					
+					case 0:		// play end
+					// 終了
+						playNextMusic();
+					break;
+					
+					case 1:		// play
+						this.btnClap.enabled = true;
+						this.btnStand.enabled = true;
+						this.btnMute.enabled = true;
+					break;
+					
+					case 2:		// pause
+					break;
+					
+					case 3:		// buffering
+					break;
+					
+					case 4:		// stop
+					break;
+					
+					case 5:		// queing
+					break;
+				}
+			}
+			
+			private function playerVideoPlaybackQualityChange(evt:Event):void
+			{
+
+			}
+			
+			private function playlistcheck():void{
+				
+					var sss:String = new String(playingobj.twdata["user"]);
+					var i:int;
+					var x:int;
+					var m:int = tumblist.length;
+					var c:int = 0;
+					for (i = 0; i < m; i++){
+						trace(i + "\t" + tumblist[i].label + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
+					}
+					trace("------------------------");
+					for (i = 0;i < m; i++){
+						if (tumblist[i].twdata["user"] != sss){
+							c++;
+						}
+						if (c >= 3){
+							x = i;
+							trace("other 3 pos = " + i);
+							break;
+						}
+					}
+					trace("playing : " + playingobj.twdata["user"]);
+					if ((c >= 3) && (i < m)){
+						var cc:int = 0;
+						while(cc < 3){
+							if (tumblist[cc].twdata["user"] == sss){
+								var tobj:Object = tumblist[cc];
+								tumblist.removeItemAt(cc);
+								tumblist.addItemAt(tobj,x);
+								trace("move " + cc + " -> " + x );
+							} else {
+								cc++;
+							}
+						}
+						
+					} else {
+						trace("too many same person's requests");
+					}
+					for (i = 0; i < m; i++){
+						trace(i + "\t" + tumblist[i].label + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
+					}
+			}
+			
+			private function playNextMusic():void{
+				trace("playNextMusic");
+				var str:String = new String();
+				trace("music : " + playingobj.label + "->" + tumblist[0].label);
+				if ((tumblist.length != 0) && (tumblist[0].label != null)){
+
+
+					if ((playingobj != null) && playingobj.label != null){
+						trace("add to played music : " + playingobj.label);
+						playedMusic.addItem(playingobj);
+						playlistcheck();
+					}
+					try{
+						tubePlayer.loadVideoById(tumblist[0].label);
+					}
+					catch (err:Error) {
+						trace("xxxxxxloadVideoByID: " + err);
+					}
+
+					startflg = true;
+					this.btnSkip.enabled = true;
+					playingobj = tumblist[0];
+					titledata = tumblist[0].title;
+					userurl.label = tumblist[0].twdata["user"];
+					twitimg.source = tumblist[0].twdata["usericon"];
+					this.title = "radichu - " + tumblist[0].title;
+					tumblist.removeItemAt(0);
+				
+					if (quedMusic.length != 0){
+						var n:int = quedMusic.length - 1;
+						trace("add from qued music : " + quedMusic[n].label);
+						if ((quedMusic[n].tumburl == null) || quedMusic[n].tumburl == ""){
+							trace("need to get data");
+							getYoutubeDetail(quedMusic[n].label,quedMusic[n].twdata, false);
+						} else {
+							trace("not need to get data");
+							tumblist.addItem(quedMusic[n]);
+						}
+						quedMusic.removeItemAt(n);
+					} else if (playedMusic.length != 0) {
+						trace("add from played music : " + playedMusic[0].label);
+						tumblist.addItem(playedMusic[0]);
+						playedMusic.removeItemAt(0);
+					}
+				}
+			}
+			
+			private function addMusicData(id:String, obj:Object):void{
+				trace("addMusicData : " + id);
+				
+				if (tumblist.length >= 16){
+					quedMusic.addItem(tumblist[15]);
+					tumblist.removeItemAt(15);
+				}
+				var tdata:Object = new Object();
+				tdata["user"] = obj["user"]["screen_name"];
+				tdata["usericon"] = obj["user"]["profile_image_url"];
+				this.status = "Add request : " + id + " by " + tdata["user"];
+				getYoutubeDetail(id, tdata);
+			}
+			
+			private function tumbfunc(item:Object):String{
+				return item.tumburl;
+			}
+			
+			private function tumbtipfunc(item:Object):String{
+				return item.title;
+			}
+
+			private function onVolChg(event:SliderEvent):void{
+				var curslider:Slider = Slider(event.currentTarget);
+				vol = curslider.value;
+				tubePlayer.setVolume(curslider.value);
+			}
+			
+			private function onSkipBtn():void{
+				playNextMusic();
+			}
+			
+			private function onConfBtn():void{
+				conf = config(PopUpManager.createPopUp(this, config, true));
+
+				conf.showCloseButton = true;
+				conf.addEventListener("close", closeDialog);
+				conf.addEventListener("click", Mouse_Click_Dialog);
+				conf["send"].addEventListener("click", displayValue);
+				
+				conf.TwitterID.text = new String(twitterid);
+				conf.Password.text = new String(twitterpass);
+				PopUpManager.centerPopUp(conf);
+				
+			}
+
+			public function closeDialog(event:Event):void {
+
+				PopUpManager.removePopUp(conf);
+
+			}
+
+			public function displayValue(event:Event):void {
+
+				trace(conf.TwitterID.text);
+				trace(conf.Password.text);
+				twitterid = new String(conf.TwitterID.text);
+				twitterpass = new String(conf.Password.text);
+				
+				if (!streamflg){
+					connectStreamingAPI();
+				}
+				
+				var f:File = File.applicationStorageDirectory;
+				f = f.resolvePath("id.txt");
+				
+				var aStream:FileStream=new FileStream();
+				aStream.open(f,FileMode.WRITE);
+				aStream.writeUTFBytes("id=" + conf.TwitterID.text + ",pass=" + conf.Password.text + "\n");
+				aStream.close();
+
+				PopUpManager.removePopUp(conf);
+			}
+
+			public function Mouse_Click():void {
+			}
+
+			public function Mouse_Click_Dialog(event:Event):void {
+			}
+			
+			public function onClapBtn():void{
+				showClapDialog("CLAP!");
+			}
+			
+			public function onStandBtn():void{
+				showClapDialog("STAND!");
+			}
+
+			public function showClapDialog(str:String):void{
+				clp = clap(PopUpManager.createPopUp(this, clap, true));
+
+				clp.title = str;
+				clp.showCloseButton = true;
+				clp.addEventListener("close", clapclose);
+				clp.addEventListener("click", Mouse_Click_Dialog);
+				clp["send"].addEventListener("click", clapValue);
+
+				clp.claptext.text = "";
+
+				clp.width = this.width - 40;
+				clp.claptext.setFocus();
+
+				saveTitle = new String(playingobj.title);
+				saveText1 = new String(str);
+				saveText2 = new String(" ～ http://youtu.be/" + playingobj.label + " DJ @" + playingobj.twdata["user"] + " #radioooo http://j.mp/blsJRR");
+
+				clp.claplabel.text = str + " " + playingobj.title + saveText2;
+				PopUpManager.centerPopUp(clp);
+			}
+
+			public function clapclose(event:Event):void {
+
+				PopUpManager.removePopUp(clp);
+
+			}
+
+			public function clapValue(event:Event):void {
+				trace("claptext = \"" + clp.claptext.text + "\"");
+				
+				var str1:String = new String(clp.claptext.text);
+				if (str1 != ""){
+					saveText1 = new String(" " + saveText1);
+				}
+				trace(str1);
+				
+				var str2:String = new String(str1 + saveText1 + " " + saveTitle  + saveText2);
+				if (str2.length > 140){
+					if (saveTitle.length > 12){
+						saveTitle = new String(" " + saveTitle.substr(0,10) + "…");
+						trace("t: " + saveTitle);
+					} else {
+						saveTitle = new String(" " + saveTitle);
+					}
+					str2 = new String(str1 + saveText1 + saveTitle + saveText2);
+					trace("u: " + str2);
+					if (str2.length > 140){
+						var str3:String = new String(saveText1 + saveTitle + saveText2);
+						str2 = new String(str1.substr(0, 138-str3.length) + "… " + str3);
+						trace("v: " + str2);
+					}
+				}
+				trace("w: " + str2);
+				trace("x: " + str2.length);
+
+				service = new HTTPService;
+				service.method = "post";
+				service.url = "http://api.twitter.com/1/statuses/update.json";
+				service.resultFormat = "text";
+				service.addEventListener(ResultEvent.RESULT, sendcomp);
+				service.addEventListener(FaultEvent.FAULT, senderr);
+
+				var enc:Base64Encoder = new Base64Encoder();
+				enc.encodeUTFBytes(twitterid + ":" + twitterpass);
+
+				var forms:URLVariables = new URLVariables();
+				forms.status = str2;
+				service.headers["Authorization"] = "Basic " + enc.flush();
+				service.request = forms;
+				service.send();
+				
+				this.status = "Posted to twitter";
+
+				PopUpManager.removePopUp(clp);
+
+			}
+
+
+			private function sendcomp(event:Event):void{
+				trace("send comp" + event.toString());
+				
+			}
+			
+			private function senderr(event:Event):void{
+				trace("send err" + event.toString());
+				
+			}
+			
+			private function onUserUrl():void{
+				navigateToURL(new URLRequest("http://twitter.com/" + playingobj.twdata["user"]));
+			}
+			
+			private function onMuteBtn():void{
+				var b:Boolean = btnMute.selected;
+				if (b){
+					tubePlayer.mute();
+					volslider.enabled = false;
+				} else {
+					tubePlayer.unMute();
+					volslider.enabled = true;
+					tubePlayer.setVolume(vol);
+				}
+			}
+			
+			private function onChkTop():void{
+				this.nativeWindow.alwaysInFront = chkTop.selected;
+			}
+		]]>
+
+	</mx:Script>	
+
+	<mx:VBox left="2" top="2" right="2" bottom="2" horizontalAlign="center">
+		<mx:HBox height="70%" width="100%">
+			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
+			<mx:HBox height="100%">
+				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
+					<mx:VSlider id="volslider" change="onVolChg(event)" enabled="true" snapInterval="5" minimum="0" maximum="100" liveDragging="true" allowTrackClick="true" height="100%"/>
+					<mx:Button label="X" toggle="true" enabled="false" click="onMuteBtn()" id="btnMute" toolTip="Mute"/>
+				</mx:VBox>
+				<mx:VBox height="100%" width="100%" horizontalAlign="center">
+					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5">
+						<mx:Button id="btnSkip" label="SKIP" enabled="false" click="onSkipBtn()"/>
+						<mx:Button label="aif" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" toolTip="Always in front"/>
+						<mx:Button id="btnConf" label="cfg" enabled="true" click="onConfBtn()"/>
+					</mx:HBox>
+					<mx:VBox height="100%" width="30%">
+						<mx:TextArea id="titleArea" htmlText="{titledata}" width="200" height="100%" editable="false" cornerRadius="5" fontWeight="bold" fontSize="12" wordWrap="true" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc"/>
+						<mx:HBox width="100%" cornerRadius="5" borderStyle="solid" borderThickness="5" backgroundColor="#cccccc" borderColor="#cccccc" alpha="1.0">
+							<mx:Image id="twitimg" width="48" height="48" scaleContent="true"/>
+							<mx:VBox width="100%" height="48" backgroundAlpha="1.0" alpha="1.0" verticalAlign="middle" borderColor="#cccccc" backgroundColor="#cccccc">
+								<mx:Label text="Request:"  alpha="1.0" fontStyle="italic" fontSize="11" height="50%"/>
+								<mx:LinkButton id="userurl" click="onUserUrl()" width="100%" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
+							</mx:VBox>
+						</mx:HBox>
+						<mx:HBox height="100%" width="100%" horizontalAlign="center" verticalAlign="middle" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
+							<mx:Button  id="btnClap" label="CLAP!" enabled="false" click="onClapBtn()" width="100%" height="100%" cornerRadius="10"/>
+							<mx:Button  id="btnStand" label="STAND!" enabled="false" click="onStandBtn()" width="100%" height="100%" cornerRadius="10"/>
+						</mx:HBox>
+					</mx:VBox>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:HBox>
+		<mx:TileList id="tumb" height="30%" maxHeight="100" width="100%" dataProvider="{tumblist}" itemRenderer="mx.controls.Image"
+			dataTipFunction="tumbtipfunc" showDataTips="true"
+			labelFunction="tumbfunc"
+			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"
+			 cornerRadius="5" borderThickness="5" borderColor="#cccccc" alternatingItemColors="[#cccccc, #cccccc]" backgroundColor="#cccccc"/>
+	</mx:VBox>
+
+</mx:WindowedApplication>

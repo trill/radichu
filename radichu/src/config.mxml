@@ -1,0 +1,20 @@
+<mx:TitleWindow
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	title="config"
+>
+	<mx:Label text="TwitterID"/>
+	<mx:TextInput
+		id="TwitterID"
+		displayAsPassword="false"
+/>
+	<mx:Label text="TwitterPass"/>
+	<mx:TextInput
+		id="Password"
+		displayAsPassword="true"
+	/>
+	<mx:Button
+		id="send"
+		label="設定"
+	/>
+
+</mx:TitleWindow>

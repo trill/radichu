@@ -398,9 +398,7 @@
 
 				trace("player ready");
 				tubePlayer = loader.content;
-				tubePlayer.setSize(youtubeBox.width - 6, youtubeBox.height - 6);
-				tubePlayer.x = 3;
-				tubePlayer.y = 3;
+				tubePlayer.setSize(youtubeBox.width, youtubeBox.height);
 				youtubeBox.addEventListener(Event.RESIZE,stageResize);
 				var appWin:NativeWindow = this.stage.nativeWindow;
 	

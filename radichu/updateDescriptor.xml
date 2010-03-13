@@ -3,10 +3,17 @@
        <version>Alpha 0.1.1</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
+Varsion 0.1.2 <- 0.1.1
+	* 時刻表示追加
+	* ログ表示追加(ステータスバークリック)
+	* アプリタイトル修正(曲名を先に表示)
+	* 曲名クリックでYoutubeにジャンプ
+	* ウィンドウサイズ・配置保存
+--------------------------------------------------------------
 Version 0.1.1 <- 0.0.8
-    * 自動アップデート対応
-    * 初期リクエスト時のhttpヘッダを修正(キャッシュを使わない)
-    * その他
+	* 自動アップデート対応
+	* 初期リクエスト時のhttpヘッダを修正(キャッシュを使わない)
+	* その他
  ]]>
  		</description>
      </update>

@@ -70,6 +70,9 @@
 			private var vol:int = 80;
 			private var urllist:ArrayCollection = new ArrayCollection();
 			private var appUpdater:ApplicationUpdaterUI = new ApplicationUpdaterUI();
+			private var logwin:logwindow;
+			private var statusLog:ArrayCollection = new ArrayCollection();
+			private var playTimer:Timer;
 
 			
 			private function init():void
@@ -111,6 +114,10 @@
         				this.nativeWindow.x = 100;
         				this.nativeWindow.y = 100;
 			    	}
+			    	if (so.data.hasOwnProperty("width")  && so.data.hasOwnProperty("height")){
+			    		this.nativeWindow.width = so.data.width;
+			    		this.nativeWindow.height = so.data.height;
+			    	}
 			    	twitterid = new String(so.data.twitterid);
 			    	twitterpass = new String(so.data.twitterpass);
 			    	vol = so.data.vol;
@@ -125,6 +132,8 @@
 				}
 				
 				volslider.value = vol;
+				
+				this.statusBar.addEventListener(MouseEvent.CLICK, onStatusBarClick);
 			}
 			
 			private function update_initialized(evt:Event):void{
@@ -140,6 +149,8 @@
 				    so.data.x = this.nativeWindow.x;
 				    so.data.y = this.nativeWindow.y;
 				    so.data.vol = this.vol;
+				    so.data.width = this.nativeWindow.width;
+				    so.data.height = this.nativeWindow.height;
     				so.flush();
 			}
 			
@@ -338,7 +349,7 @@
 				var y:Array = pa2.exec(str);
 				if (y){
 					trace("****** no embed ****** : " + id);
-					this.status = id + " by " + urllist[0].obj["user"] + ": no embed";
+					addStatusLog(id + " by " + urllist[0].obj["user"] + ": no embed");
 					urlloaderend();
 					return;
 				}
@@ -405,8 +416,27 @@
 				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				
+				playTimer = new Timer(200,0);
+				playTimer.addEventListener(TimerEvent.TIMER, onPlayTimer);
+				playTimer.start();
+				
 				tubePlayer.setVolume(vol);
 				playStart();
+			}
+			private function onPlayTimer(evt:Event):void{
+				var now:int = tubePlayer.getCurrentTime();
+				var dur:int = tubePlayer.getDuration();
+				var str:String = 	"Time " +
+									String(now/60+100).substr(1,2) + ":" + String(now%60+100).substr(1) + "/" +
+									String(dur/60+100).substr(1,2) + ":" + String(dur%60+100).substr(1) +
+									" - Load ";
+				if (tubePlayer.getVideoBytesTotal() != 0){
+					str += 			String(Math.round(tubePlayer.getVideoBytesLoaded()/tubePlayer.getVideoBytesTotal() * 100)) + "%";
+				}
+				else {
+					str += "0%";
+				}
+				playStatus.text = str;
 			}
 			private function mouseWheel(evt:MouseEvent):void{
 				trace("MouseWheel: " + evt);
@@ -548,10 +578,10 @@
 					startflg = true;
 					this.btnSkip.enabled = true;
 					playingobj = tumblist[0];
-					titledata = tumblist[0].title;
+					titledata = "<a href=\"http://youtu.be/" + tumblist[0].label + "\">" + tumblist[0].title + "</a>";
 					userurl.label = tumblist[0].twdata["user"];
 					twitimg.source = tumblist[0].twdata["usericon"];
-					this.title = "radichu - " + tumblist[0].title;
+					this.title = tumblist[0].title + " - radichu";
 					tumblist.removeItemAt(0);
 				
 					if (quedMusic.length != 0){
@@ -583,7 +613,7 @@
 				var tdata:Object = new Object();
 				tdata["user"] = obj["user"]["screen_name"];
 				tdata["usericon"] = obj["user"]["profile_image_url"];
-				this.status = "Add request : " + id + " by " + tdata["user"];
+				addStatusLog("Add request : " + id + " by " + tdata["user"]);
 				getYoutubeDetail(id, tdata);
 			}
 			
@@ -733,7 +763,7 @@
 				service.request = forms;
 				service.send();
 				
-				this.status = "Posted to twitter";
+				addStatusLog("Posted to twitter");
 
 				PopUpManager.removePopUp(clp);
 
@@ -769,6 +799,41 @@
 			private function onChkTop():void{
 				this.nativeWindow.alwaysInFront = chkTop.selected;
 			}
+			
+			private function onStatusBarClick(event:Event):void{
+				trace("onStatusBarClick: " + event);
+				logwin = logwindow(PopUpManager.createPopUp(this, logwindow, true));
+				
+				var i:int;
+				var n:int = statusLog.length;
+				logwin.logarea.text = "";
+				
+				for (i = 0; i < n; i++){
+					logwin.logarea.text += statusLog[i].toString() + "\n";
+				}
+				logwin.width = this.width - 2;
+				logwin.height = this.height - 2;
+
+				logwin.showCloseButton = true;
+				logwin.addEventListener("close", logclose);
+				logwin.addEventListener("click", logclose);
+				PopUpManager.centerPopUp(clp);
+			}
+			private function logclose(event:Event):void {
+				
+				trace("logclose: " + event);
+
+				PopUpManager.removePopUp(logwin);
+
+			}
+			
+			private function addStatusLog(str:String):void{
+				statusLog.addItemAt(str,0);
+				if (statusLog.length > 100){
+					statusLog.removeItemAt(100);
+				}
+				this.status = str;
+			}
 		]]>
 
 	</mx:Script>	
@@ -779,7 +844,14 @@
 			<mx:HBox height="100%">
 				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
 					<mx:VSlider id="volslider" change="onVolChg(event)" enabled="true" snapInterval="5" minimum="0" maximum="100" liveDragging="true" allowTrackClick="true" height="100%"/>
-					<mx:Button label="X" toggle="true" enabled="false" click="onMuteBtn()" id="btnMute" toolTip="Mute"/>
+					<mx:Button toggle="true" enabled="false" click="onMuteBtn()" id="btnMute" toolTip="Mute"
+						upSkin="@Embed(source='../volume_normal_b.png')" 
+						overSkin="@Embed(source='../volume_normal_b.png')"
+						downSkin="@Embed(source='../volume_normal_c.png')"
+						selectedUpSkin="@Embed(source='../volume_normal_c.png')" 
+						selectedOverSkin="@Embed(source='../volume_normal_c.png')"
+						selectedDownSkin="@Embed(source='../volume_normal_c.png')"
+						width="16" height="16"/>
 				</mx:VBox>
 				<mx:VBox height="100%" width="100%" horizontalAlign="center">
 					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5">
@@ -787,15 +859,16 @@
 						<mx:Button label="aif" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" toolTip="Always in front"/>
 						<mx:Button id="btnConf" label="cfg" enabled="true" click="onConfBtn()"/>
 					</mx:HBox>
-					<mx:VBox height="100%" width="30%">
-						<mx:TextArea id="titleArea" htmlText="{titledata}" width="200" height="100%" editable="false" cornerRadius="5" fontWeight="bold" fontSize="12" wordWrap="true" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc"/>
-						<mx:HBox width="100%" cornerRadius="5" borderStyle="solid" borderThickness="5" backgroundColor="#cccccc" borderColor="#cccccc" alpha="1.0">
+					<mx:VBox height="100%" width="200">
+						<mx:TextArea id="titleArea" htmlText="{titledata}" width="100%" height="100%" editable="false" cornerRadius="5" fontWeight="bold" fontSize="12" wordWrap="true" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc"/>
+						<mx:HBox width="200" cornerRadius="5" borderStyle="solid" borderThickness="5" backgroundColor="#cccccc" borderColor="#cccccc" alpha="1.0">
 							<mx:Image id="twitimg" width="48" height="48" scaleContent="true"/>
 							<mx:VBox width="100%" height="48" backgroundAlpha="1.0" alpha="1.0" verticalAlign="middle" borderColor="#cccccc" backgroundColor="#cccccc">
 								<mx:Label text="Request:"  alpha="1.0" fontStyle="italic" fontSize="11" height="50%"/>
-								<mx:LinkButton id="userurl" click="onUserUrl()" width="100%" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
+								<mx:LinkButton id="userurl" click="onUserUrl()" width="125" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
 							</mx:VBox>
 						</mx:HBox>
+						<mx:TextArea id="playStatus" width="100%" height="24" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc" textAlign="center"/>
 						<mx:HBox height="100%" width="100%" horizontalAlign="center" verticalAlign="middle" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
 							<mx:Button  id="btnClap" label="CLAP!" enabled="false" click="onClapBtn()" width="100%" height="100%" cornerRadius="10"/>
 							<mx:Button  id="btnStand" label="STAND!" enabled="false" click="onStandBtn()" width="100%" height="100%" cornerRadius="10"/>

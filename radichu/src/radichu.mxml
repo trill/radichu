@@ -73,6 +73,8 @@
 			private var logwin:logwindow;
 			private var statusLog:ArrayCollection = new ArrayCollection();
 			private var playTimer:Timer;
+			private var playerQualityCheck:Boolean = false;
+			private var hqMode:Boolean = false;
 
 			
 			private function init():void
@@ -289,6 +291,7 @@
 					trace("tumblist.length = " + tumblist.length);
 					trace("quedMusic.length = " + quedMusic.length);
 					initflg = false;
+					addStatusLog("Complete load tumbnails.");
 				}
 				
 				if (!startflg){
@@ -349,7 +352,7 @@
 				var y:Array = pa2.exec(str);
 				if (y){
 					trace("****** no embed ****** : " + id);
-					addStatusLog(id + " by " + urllist[0].obj["user"] + ": no embed");
+					addStatusLog("* No embed : " + id + " by " + urllist[0].obj["user"] + " *");
 					urlloaderend();
 					return;
 				}
@@ -400,6 +403,7 @@
 				loader.content.addEventListener("onReady", playerReady);
 				loader.content.addEventListener("onError", playerError);
 				loader.addEventListener("onError", playerError);
+				loader.addEventListener(IOErrorEvent.IO_ERROR, playerError);
 				loader.content.addEventListener("onStateChange", playerStateChange);
 				loader.content.addEventListener("onPlaybackQualityChange", playerVideoPlaybackQualityChange);
 			}
@@ -437,6 +441,7 @@
 					str += "0%";
 				}
 				playStatus.text = str;
+				playStatus.toolTip = "List: wait=" + tumblist.length + " que=" + quedMusic.length + " played=" + playedMusic.length;
 			}
 			private function mouseWheel(evt:MouseEvent):void{
 				trace("MouseWheel: " + evt);
@@ -478,9 +483,10 @@
 			private function playerStateChange(evt:Event):void
 			{
 
-				
+				trace("playerStateChange : " + Object(evt).data);
 				switch ( Object(evt).data ) {
 					case -1:	// not start plaing
+						playerQualityCheck = false;
 					break;
 					
 					case 0:		// play end
@@ -492,6 +498,15 @@
 						this.btnClap.enabled = true;
 						this.btnStand.enabled = true;
 						this.btnMute.enabled = true;
+						if (!playerQualityCheck){
+							var ar:Array = tubePlayer.getAvailableQualityLevels();
+							trace("AvailableQualityLevels: " + ar.toString());
+							if (hqMode){
+								tubePlayer.setPlaybackQuality("hd720");
+								trace("changeQuality");
+							}
+						}
+						playerQualityCheck = true;
 					break;
 					
 					case 2:		// pause
@@ -637,6 +652,8 @@
 			
 			private function onConfBtn():void{
 				conf = config(PopUpManager.createPopUp(this, config, true));
+
+				appUpdater.checkNow();
 
 				conf.showCloseButton = true;
 				conf.addEventListener("close", closeDialog);
@@ -800,6 +817,10 @@
 				this.nativeWindow.alwaysInFront = chkTop.selected;
 			}
 			
+			private function onChkHq():void{
+				hqMode = chkHq.selected;
+			}
+			
 			private function onStatusBarClick(event:Event):void{
 				trace("onStatusBarClick: " + event);
 				logwin = logwindow(PopUpManager.createPopUp(this, logwindow, true));
@@ -838,7 +859,7 @@
 
 	</mx:Script>	
 
-	<mx:VBox left="2" top="2" right="2" bottom="2" horizontalAlign="center">
+	<mx:VBox left="5" top="5" right="5" bottom="5" horizontalAlign="center">
 		<mx:HBox height="70%" width="100%">
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
 			<mx:HBox height="100%">
@@ -854,9 +875,17 @@
 						width="16" height="16"/>
 				</mx:VBox>
 				<mx:VBox height="100%" width="100%" horizontalAlign="center">
-					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5">
+					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5" verticalAlign="middle">
 						<mx:Button id="btnSkip" label="SKIP" enabled="false" click="onSkipBtn()"/>
-						<mx:Button label="aif" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" toolTip="Always in front"/>
+						<mx:Button label="HQ" toggle="true" selected="false" enabled="true" click="onChkHq()" id="chkHq" toolTip="HQ mode"
+						upSkin="@Embed(source='nq.png')" 
+						overSkin="@Embed(source='nq.png')"
+						downSkin="@Embed(source='nq.png')"
+						selectedUpSkin="@Embed(source='hq.png')" 
+						selectedOverSkin="@Embed(source='hq.png')"
+						selectedDownSkin="@Embed(source='hq.png')"
+						width="16" height="16"/>
+						<mx:Button label="aiF" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" toolTip="Always in front"/>
 						<mx:Button id="btnConf" label="cfg" enabled="true" click="onConfBtn()"/>
 					</mx:HBox>
 					<mx:VBox height="100%" width="200">

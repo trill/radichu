@@ -24,7 +24,7 @@
 	<name>radichu</name>
 
 	<!-- An application version designator (such as "v1", "2.5", or "Alpha 1"). Required. -->
-	<version>Alpha 0.1.2</version>
+	<version>Alpha 0.1.3</version>
 
 	<!-- Description, displayed in the AIR application installer.
 	     May have multiple values for each language. See samples or xsd schema file. Optional. -->
@@ -87,12 +87,12 @@
 
 	<!-- The icon the system uses for the application. For at least one resolution,
 		 specify the path to a PNG file included in the AIR package. Optional. -->
-	<!-- <icon>
-		<image16x16></image16x16>
-		<image32x32></image32x32>
-		<image48x48></image48x48>
-		<image128x128></image128x128>
-	</icon> -->
+	<icon>
+		<image16x16>radichu16x16.png</image16x16>
+		<image32x32>radichu32x32.png</image32x32>
+		<image48x48>radichu48x48.png</image48x48>
+		<image128x128>radichu128x128.png</image128x128>
+	</icon>
 
 	<!-- Whether the application handles the update when a user double-clicks an update version
 	of the AIR file (true), or the default AIR application installer handles the update (false).
@@ -104,10 +104,10 @@
 	<!-- <allowBrowserInvocation></allowBrowserInvocation> -->
 
 	<!-- Listing of file types for which the application can register. Optional. -->
-	<!-- <fileTypes> -->
+<!--	<fileTypes> -->
 
 		<!-- Defines one file type. Optional. -->
-		<!-- <fileType> -->
+<!--		<fileType> -->
 
 			<!-- The name that the system displays for the registered file type. Required. -->
 			<!-- <name></name> -->
@@ -122,14 +122,14 @@
 			<!-- <contentType></contentType> -->
 			
 			<!-- The icon to display for the file type. Optional. -->
-			<!-- <icon>
-				<image16x16></image16x16>
-				<image32x32></image32x32>
-				<image48x48></image48x48>
+<!--			<icon> 
+				<image16x16>radichu16x16.png</image16x16>
+				<image32x32>radichu32x32.png</image32x32>
+				<image48x48>radichu48x48.png</image48x48>
 				<image128x128></image128x128>
 			</icon> -->
 			
-		<!-- </fileType> -->
-	<!-- </fileTypes> -->
+<!--		</fileType> -->
+<!-- 	</fileTypes> -->
 
 </application>

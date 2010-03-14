@@ -441,7 +441,7 @@
 					str += "0%";
 				}
 				playStatus.text = str;
-				playStatus.toolTip = "List: wait=" + tumblist.length + " que=" + quedMusic.length + " played=" + playedMusic.length;
+				playStatus.toolTip = "Quality: " + tubePlayer.getPlaybackQuality() + " List: wait=" + tumblist.length + " que=" + quedMusic.length + " played=" + playedMusic.length;
 			}
 			private function mouseWheel(evt:MouseEvent):void{
 				trace("MouseWheel: " + evt);
@@ -519,6 +519,7 @@
 					break;
 					
 					case 5:		// queing
+						tubePlayer.playVideo();
 					break;
 				}
 			}
@@ -584,7 +585,14 @@
 						playlistcheck();
 					}
 					try{
-						tubePlayer.loadVideoById(tumblist[0].label);
+						if (hqMode){
+//							tubePlayer.loadVideoById(tumblist[0].label,0,"hd720");
+							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
+						}
+						else {
+//							tubePlayer.loadVideoById(tumblist[0].label);
+							tubePlayer.cueVideoById(tumblist[0].label);
+						}
 					}
 					catch (err:Error) {
 						trace("xxxxxxloadVideoByID: " + err);

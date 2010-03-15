@@ -4,6 +4,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import mx.events.CollectionEvent;
 			import air.update.events.UpdateEvent;
 			import flash.text.engine.EastAsianJustifier;
 			import com.adobe.serialization.json.JSONDecoder;
@@ -28,6 +29,7 @@
 			import mx.rpc.http.HTTPService;
     		import flash.events.IOErrorEvent;
     		import air.update.ApplicationUpdaterUI;
+    		import mx.controls.List;
     
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -97,7 +99,7 @@
 				}
 				
 				this.addEventListener(Event.CLOSING, appExit);
-
+				
 				getInitialRequests();
 
 			   var so:SharedObject = SharedObject.getLocal("appData");
@@ -134,7 +136,8 @@
 				}
 				
 				volslider.value = vol;
-				
+				URLRequestDefaults.useCache = true;
+
 				this.statusBar.addEventListener(MouseEvent.CLICK, onStatusBarClick);
 			}
 			
@@ -168,7 +171,7 @@
 			
 			private function getInitialRequests():void{
 				var header:URLRequestHeader = new URLRequestHeader("pragma", "no-cache");
-				urlreq.url = "http://search.twitter.com/search.json?q=%23radioooo%2dkichi&rpp=100";
+				urlreq.url = "http://search.twitter.com/search.json?lang=all&q=%23radioooo%2dkichi&rpp=100";
 				urlreq.useCache = false;
 				urlreq.requestHeaders.push(header);
 				urlload.addEventListener(Event.COMPLETE, seacomp);
@@ -396,7 +399,12 @@
 					getYoutubeDetail2();
 				}
 			}
-			
+
+			private function tumblistError(evt:Event):void{
+				trace("++++++++++++++++++++++\nthumbnailList Error: " + evt);
+				addStatusLog("thumbnailList Error");
+			}	
+					
 			private function loaderInit(evt:Event):void
 			{
 				youtubeBox.rawChildren.addChild(loader);
@@ -430,7 +438,7 @@
 			private function onPlayTimer(evt:Event):void{
 				var now:int = tubePlayer.getCurrentTime();
 				var dur:int = tubePlayer.getDuration();
-				var str:String = 	"Time " +
+				var str:String = 	tubePlayer.getPlaybackQuality().substr(0,1) + ":Time " +
 									String(now/60+100).substr(1,2) + ":" + String(now%60+100).substr(1) + "/" +
 									String(dur/60+100).substr(1,2) + ":" + String(dur%60+100).substr(1) +
 									" - Load ";
@@ -501,10 +509,10 @@
 						if (!playerQualityCheck){
 							var ar:Array = tubePlayer.getAvailableQualityLevels();
 							trace("AvailableQualityLevels: " + ar.toString());
-							if (hqMode){
+/*							if (hqMode){
 								tubePlayer.setPlaybackQuality("hd720");
 								trace("changeQuality");
-							}
+							}*/
 						}
 						playerQualityCheck = true;
 					break;
@@ -586,12 +594,12 @@
 					}
 					try{
 						if (hqMode){
-//							tubePlayer.loadVideoById(tumblist[0].label,0,"hd720");
-							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
+							tubePlayer.loadVideoById(tumblist[0].label,0,"hd720");
+//							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
 						}
 						else {
-//							tubePlayer.loadVideoById(tumblist[0].label);
-							tubePlayer.cueVideoById(tumblist[0].label);
+							tubePlayer.loadVideoById(tumblist[0].label);
+//							tubePlayer.cueVideoById(tumblist[0].label);
 						}
 					}
 					catch (err:Error) {
@@ -646,6 +654,10 @@
 			
 			private function tumbtipfunc(item:Object):String{
 				return item.title;
+			}
+			private function onTileListComplete():void{
+				var cf:ClassFactory = new ClassFactory(List);
+				cf.properties = {showDataTips:true, dataTipFunction:tumbtipfunc};
 			}
 
 			private function onVolChg(event:SliderEvent):void{
@@ -827,6 +839,12 @@
 			
 			private function onChkHq():void{
 				hqMode = chkHq.selected;
+				if (hqMode){
+					tubePlayer.setPlaybackQuality("hd720");
+				}
+				else {
+					tubePlayer.setPlaybackQuality("meduim");
+				}
 			}
 			
 			private function onStatusBarClick(event:Event):void{
@@ -867,8 +885,8 @@
 
 	</mx:Script>	
 
-	<mx:VBox left="5" top="5" right="5" bottom="5" horizontalAlign="center">
-		<mx:HBox height="70%" width="100%">
+	<mx:VBox left="5" top="5" right="5" bottom="5" horizontalAlign="center" verticalAlign="bottom">
+		<mx:HBox height="100%" width="100%">
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
 			<mx:HBox height="100%">
 				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
@@ -905,7 +923,7 @@
 								<mx:LinkButton id="userurl" click="onUserUrl()" width="125" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
 							</mx:VBox>
 						</mx:HBox>
-						<mx:TextArea id="playStatus" width="100%" height="24" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc" textAlign="center"/>
+						<mx:TextArea id="playStatus" width="100%" height="24" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc" textAlign="center" fontSize="9"/>
 						<mx:HBox height="100%" width="100%" horizontalAlign="center" verticalAlign="middle" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
 							<mx:Button  id="btnClap" label="CLAP!" enabled="false" click="onClapBtn()" width="100%" height="100%" cornerRadius="10"/>
 							<mx:Button  id="btnStand" label="STAND!" enabled="false" click="onStandBtn()" width="100%" height="100%" cornerRadius="10"/>
@@ -914,10 +932,10 @@
 				</mx:VBox>
 			</mx:HBox>
 		</mx:HBox>
-		<mx:TileList id="tumb" height="30%" maxHeight="100" width="100%" dataProvider="{tumblist}" itemRenderer="mx.controls.Image"
+		<mx:TileList id="tumb" height="76" maxHeight="76" width="100%" dataProvider="{tumblist}" itemRenderer="thumbnail"
 			dataTipFunction="tumbtipfunc" showDataTips="true"
 			labelFunction="tumbfunc"
-			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"
+			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"   
 			 cornerRadius="5" borderThickness="5" borderColor="#cccccc" alternatingItemColors="[#cccccc, #cccccc]" backgroundColor="#cccccc"/>
 	</mx:VBox>
 

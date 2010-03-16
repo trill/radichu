@@ -4,6 +4,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import mx.graphics.RadialGradient;
 			import mx.events.CollectionEvent;
 			import air.update.events.UpdateEvent;
 			import flash.text.engine.EastAsianJustifier;
@@ -30,7 +31,7 @@
     		import flash.events.IOErrorEvent;
     		import air.update.ApplicationUpdaterUI;
     		import mx.controls.List;
-    
+
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
 			[Bindable]
@@ -77,8 +78,9 @@
 			private var playTimer:Timer;
 			private var playerQualityCheck:Boolean = false;
 			private var hqMode:Boolean = false;
+			private var userPlay:Boolean = false;
+			private var lasttime:int;
 
-			
 			private function init():void
 			{
 				
@@ -372,11 +374,29 @@
 					trace("noresult: " + str);
 					urlloaderend();
 				}
+				var inObj:BindObj = new BindObj();
+				inObj.label = id;
+				inObj.tumburl = tumburl[1];
+				inObj.htmltitle = title;
+				var str2:String = new String(title);
+				var rep:RegExp = new RegExp("&amp;","g");
+				str2 = str2.replace(rep, "&");
+				rep = new RegExp("&lt;","g");
+				str2 = str2.replace(rep, "<");
+				rep = new RegExp("&gt;","g");
+				str2 = str2.replace(rep, ">");
+				rep = new RegExp("@","g");
+				str2 = str2.replace(rep, "＠");
+				inObj.title = str2;
+				inObj.htmltitle = title;
+				inObj.twdata = urllist[0].obj;
 				if (urllist[0].flg == true){
-					tumblist.addItemAt({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj},0);
+//					tumblist.addItemAt({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj},0);
+					tumblist.addItemAt(inObj,0);
 					trace("add imageurl at top");
 				} else {
-					tumblist.addItem({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj});
+//					tumblist.addItem({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj});
+					tumblist.addItem(inObj);
 					trace("add imageurl at last");
 				}
 
@@ -437,6 +457,7 @@
 			}
 			private function onPlayTimer(evt:Event):void{
 				var now:int = tubePlayer.getCurrentTime();
+				lasttime = now;
 				var dur:int = tubePlayer.getDuration();
 				var str:String = 	tubePlayer.getPlaybackQuality().substr(0,1) + ":Time " +
 									String(now/60+100).substr(1,2) + ":" + String(now%60+100).substr(1) + "/" +
@@ -495,10 +516,21 @@
 				switch ( Object(evt).data ) {
 					case -1:	// not start plaing
 						playerQualityCheck = false;
+						trace(userPlay);
+						if (!userPlay && playingobj.hasOwnProperty("title")){
+							userPlay = true;
+//							tubePlayer.playVideo();
+							trace(lasttime);					// シークするとplay endイベントがなぜかこない？
+							tubePlayer.seekTo(lasttime,true);
+
+						} else {
+							userPlay = false;
+						}
 					break;
 					
 					case 0:		// play end
 					// 終了
+						userPlay = true;
 						playNextMusic();
 					break;
 					
@@ -518,6 +550,7 @@
 					break;
 					
 					case 2:		// pause
+//						tubePlayer.playVideo();
 					break;
 					
 					case 3:		// buffering
@@ -563,7 +596,7 @@
 						var cc:int = 0;
 						while(cc < 3){
 							if (tumblist[cc].twdata["user"] == sss){
-								var tobj:Object = tumblist[cc];
+								var tobj:BindObj = tumblist[cc];
 								tumblist.removeItemAt(cc);
 								tumblist.addItemAt(tobj,x);
 								trace("move " + cc + " -> " + x );
@@ -587,7 +620,7 @@
 				if ((tumblist.length != 0) && (tumblist[0].label != null)){
 
 
-					if ((playingobj != null) && playingobj.label != null){
+					if ((playingobj != null) && playingobj.hasOwnProperty("label")){
 						trace("add to played music : " + playingobj.label);
 						playedMusic.addItem(playingobj);
 						playlistcheck();
@@ -609,7 +642,7 @@
 					startflg = true;
 					this.btnSkip.enabled = true;
 					playingobj = tumblist[0];
-					titledata = "<a href=\"http://youtu.be/" + tumblist[0].label + "\">" + tumblist[0].title + "</a>";
+					titledata = "<a href=\"http://youtu.be/" + tumblist[0].label + "\">" + tumblist[0].htmltitle + "</a>";
 					userurl.label = tumblist[0].twdata["user"];
 					twitimg.source = tumblist[0].twdata["usericon"];
 					this.title = tumblist[0].title + " - radichu";
@@ -667,6 +700,7 @@
 			}
 			
 			private function onSkipBtn():void{
+				userPlay = true;
 				playNextMusic();
 			}
 			
@@ -883,8 +917,7 @@
 			}
 		]]>
 
-	</mx:Script>	
-
+	</mx:Script>
 	<mx:VBox left="5" top="5" right="5" bottom="5" horizontalAlign="center" verticalAlign="bottom">
 		<mx:HBox height="100%" width="100%">
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
@@ -933,9 +966,8 @@
 			</mx:HBox>
 		</mx:HBox>
 		<mx:TileList id="tumb" height="76" maxHeight="76" width="100%" dataProvider="{tumblist}" itemRenderer="thumbnail"
-			dataTipFunction="tumbtipfunc" showDataTips="true"
-			labelFunction="tumbfunc"
-			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"   
+			dataTipFunction="tumbtipfunc" showDataTips="true" labelFunction="tumbfunc"
+			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"
 			 cornerRadius="5" borderThickness="5" borderColor="#cccccc" alternatingItemColors="[#cccccc, #cccccc]" backgroundColor="#cccccc"/>
 	</mx:VBox>
 

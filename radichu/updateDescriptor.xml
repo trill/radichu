@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.5</version> 
+       <version>Alpha 0.1.6</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
+Version 0.1.6 <- 0.1.5 (2010/03/17)
+	! 過度のOQRは健康を害するおそれがありますので、用法を守って御使用下さい。
+	* サムネイルロード時のエラー処理を修正
+	* "YouTube"アイコンクリック時の処理を追加
+	* タイトル文字列の変換処理追加("&","<",">","@")
+	* その他細々と修正
+------------------------------------------------------------------------------------------
 Version 0.1.5 <- 0.1.4 (2010/03/15)
-	! 過剰なOQRは健康を害するおそれがありますので、用法を守って御使用下さい。
 	* HQボタン押下時にも再生クオリティを変更するよう修正
 	* サムネイル画像拡大＋曲名ツールチップ追加
 	* 初期リクエスト取得時のURLパラメータ追加

@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<mx:Image xmlns:mx="http://www.adobe.com/2006/mxml" width="64" height="64" scaleContent="true" autoLoad="true" toolTip="{data.title}">
+<mx:Image xmlns:mx="http://www.adobe.com/2006/mxml" width="64" height="64" 
+	 creationComplete="creationComp()" scaleContent="true" autoLoad="true" toolTip="{data.title}">
+	 <mx:Script>
+	 	<![CDATA[
+	 		private function creationComp():void{
+	 			this.addEventListener(IOErrorEvent.IO_ERROR, ioerror);
+	 		}
+	 		
+	 		private function ioerror(evt:Event):void{
+	 			trace("&&&&&&&&&&&&&&\nthumbnail.ioerror: " + evt);
+	 		}
+	 	]]>
+	 </mx:Script>
 	
 </mx:Image>

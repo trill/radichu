@@ -1,6 +1,6 @@
 <mx:TitleWindow
 	xmlns:mx="http://www.adobe.com/2006/mxml"
-	title="config"
+	title="Twitter config"
 >
 	<mx:Label text="TwitterID"/>
 	<mx:TextInput

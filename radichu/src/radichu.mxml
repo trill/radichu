@@ -4,6 +4,7 @@
 
 	<mx:Script>
 		<![CDATA[
+			import mx.events.DataGridEvent;
 			import mx.graphics.RadialGradient;
 			import mx.events.CollectionEvent;
 			import air.update.events.UpdateEvent;
@@ -31,6 +32,7 @@
     		import flash.events.IOErrorEvent;
     		import air.update.ApplicationUpdaterUI;
     		import mx.controls.List;
+    		import mx.controls.Alert;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -48,7 +50,6 @@
 			private var responseXML:XML;
 			private var wns:Namespace = new Namespace("http://www.w3.org/2005/Atom");
 			private var sock:Socket = new Socket();
-			private const regtwit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;	
 			private const reginit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;
 			private const regtwiterr:RegExp = /^HTTP\/1\.1 401 Unauthorized/;
 			private var urlreq:URLRequest = new URLRequest();
@@ -62,6 +63,7 @@
 			private var playingobj:Object = new Object();
 			private var initflg:Boolean = true;
 			private var conf:config;
+			private var conf2:config2;
 			private var clp:clap;
 			private var streamflg:Boolean = false;
 			private var sendload:URLLoader;
@@ -80,6 +82,12 @@
 			private var hqMode:Boolean = false;
 			private var userPlay:Boolean = false;
 			private var lasttime:int;
+			private var strChgCount:int = 0;
+			private var channel:String = new String();
+			private var channelidx:int = 0;
+			private var resuser:String = new String();
+			private var claphash:String = new String();
+			private var params:ArrayCollection;
 
 			private function init():void
 			{
@@ -102,8 +110,6 @@
 				
 				this.addEventListener(Event.CLOSING, appExit);
 				
-				getInitialRequests();
-
 			   var so:SharedObject = SharedObject.getLocal("appData");
 				if (so.size == 0){
 					trace("create sharedObject");
@@ -124,23 +130,38 @@
 			    		this.nativeWindow.width = so.data.width;
 			    		this.nativeWindow.height = so.data.height;
 			    	}
+			    	if (so.data.hasOwnProperty("params")){
+			    		params = so.data.params;
+			    		channelidx = so.data.channelidx;
+			    	}
+			    	else {
+			    		params = new ArrayCollection([
+								{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
+								{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
+								{channel:"#radioooo_kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
+							]);
+						channelidx = 0;
+			    	}
+			    	channel = new String(params[channelidx].channel);
+			    	resuser = new String(params[channelidx].resuser);
+			    	claphash = new String(params[channelidx].claphash);
 			    	twitterid = new String(so.data.twitterid);
 			    	twitterpass = new String(so.data.twitterpass);
 			    	vol = so.data.vol;
 							 
 				}
 			    
-				if (twitterid!=""){
-					streamflg = true;
-					connectStreamingAPI();
-				} else {
-					onConfBtn();
-				}
 				
 				volslider.value = vol;
 				URLRequestDefaults.useCache = true;
 
 				this.statusBar.addEventListener(MouseEvent.CLICK, onStatusBarClick);
+				
+				var appXML:XML = NativeApplication.nativeApplication.applicationDescriptor;
+				var ns:Namespace = appXML.namespace();
+				addStatusLog("Starting radichu " + appXML.ns::version);
+				
+				openChannel();
 			}
 			
 			private function update_initialized(evt:Event):void{
@@ -158,7 +179,44 @@
 				    so.data.vol = this.vol;
 				    so.data.width = this.nativeWindow.width;
 				    so.data.height = this.nativeWindow.height;
+				    so.data.channelidx = this.channelidx;
+				    so.data.params = this.params;
     				so.flush();
+			}
+
+			private function openChannel():void{
+				if (twitterid!=""){
+					streamflg = true;
+					connectStreamingAPI();
+				} else {
+					onTwitConfBtn();
+				}
+
+				getInitialRequests();
+			}			
+
+			private function closeChannel():void{
+				if (streamflg){
+					sock.close();
+					streamflg = false;
+				}
+				
+				playTimer.stop();
+				playTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, onPlayTimer);
+				startflg = false;
+				initflg = true;
+				playingobj = new Object();
+				initmusicList.removeAll();
+				var n:int = tumblist.length;
+				for (var i:int = 0; i < n; i++){
+					tumblist.removeItemAt(0);
+				}
+				tumblist.refresh();
+				tumb.validateNow();
+				quedMusic.removeAll();
+				playedMusic.removeAll();
+				tubePlayer.stopVideo();
+		
 			}
 			
 			private function ferr(evt:Event):void {
@@ -173,7 +231,7 @@
 			
 			private function getInitialRequests():void{
 				var header:URLRequestHeader = new URLRequestHeader("pragma", "no-cache");
-				urlreq.url = "http://search.twitter.com/search.json?lang=all&q=%23radioooo%2dkichi&rpp=100";
+				urlreq.url = "http://search.twitter.com/search.json?lang=all&q=" + escape(channel) + "&rpp=100";
 				urlreq.useCache = false;
 				urlreq.requestHeaders.push(header);
 				urlload.addEventListener(Event.COMPLETE, seacomp);
@@ -189,8 +247,12 @@
 				
 				var n:int = obj["results"].length;
 				trace("init data = " + n);
+				if (n == 0){
+					addStatusLog("No music at " + channel);
+				}
 				for (var i:uint = 0; i < n; i++){
 					var str:String = new String(obj["results"][i]["text"]);
+					var reginit:RegExp = new RegExp(resuser + "\\s{1,}(.{11})\\s{1,}.*" + channel,"");
 					var result:Array = reginit.exec(str);
 					if (result != null){
 						trace(result);
@@ -208,7 +270,7 @@
 					initmusicCursor.movePrevious();
 				}
 				initmusicCursor.moveNext();
-				trace("initCuror = " + initmusicCursor.current.label);
+//				trace("initCuror = " + initmusicCursor.current.label);
 
 				getMusicDetail();
 			}
@@ -237,7 +299,8 @@
 				trace("connectHandler");
 				var urlvar:URLVariables = new URLVariables();
 //				urlvar["track"] = "#radioyoutube";
-				urlvar["track"] = "#radioooo-kichi";
+//				urlvar["track"] = "#radioooo-kichi";
+				urlvar["track"] = channel;
 				
 				var enc:Base64Encoder = new Base64Encoder();
 				enc.encodeUTFBytes(twitterid + ":" + twitterpass);
@@ -263,11 +326,12 @@
 				var auth:Array = tx.match(regtwiterr);
 				if (auth != null){
 					trace("twitter auth err");
-					onConfBtn();
+					onTwitConfBtn();
 					sock.close();
 					return;
 				}
 				
+				var regtwit:RegExp = new RegExp(resuser + "\\s{1,}(.{11})\\s{1,}.*" + channel, "");	
 				var text:Array = tx.match(regtwit);
 				var regnewtwit:RegExp = /{.*}/;
     			if(text == null || text[1] == null) return;
@@ -397,6 +461,8 @@
 				} else {
 //					tumblist.addItem({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj});
 					tumblist.addItem(inObj);
+					tumblist.refresh();
+					tumb.validateNow();
 					trace("add imageurl at last");
 				}
 
@@ -517,7 +583,7 @@
 					case -1:	// not start plaing
 						playerQualityCheck = false;
 						trace(userPlay);
-						if (!userPlay && playingobj.hasOwnProperty("title")){
+						if (!userPlay && playingobj && playingobj.hasOwnProperty("title")){
 							userPlay = true;
 //							tubePlayer.playVideo();
 							trace(lasttime);					// シークするとplay endイベントがなぜかこない？
@@ -644,8 +710,10 @@
 					playingobj = tumblist[0];
 					titledata = "<a href=\"http://youtu.be/" + tumblist[0].label + "\">" + tumblist[0].htmltitle + "</a>";
 					userurl.label = tumblist[0].twdata["user"];
+					twitimg.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
 					twitimg.source = tumblist[0].twdata["usericon"];
 					this.title = tumblist[0].title + " - radichu";
+					trace(tumb.rowCount, tumb.columnCount);
 					tumblist.removeItemAt(0);
 				
 					if (quedMusic.length != 0){
@@ -680,7 +748,11 @@
 				addStatusLog("Add request : " + id + " by " + tdata["user"]);
 				getYoutubeDetail(id, tdata);
 			}
-			
+
+			private function iconerror(evt:Event):void{
+				trace("iconerror: " + evt.toString());				
+			}			
+
 			private function tumbfunc(item:Object):String{
 				return item.tumburl;
 			}
@@ -704,15 +776,15 @@
 				playNextMusic();
 			}
 			
-			private function onConfBtn():void{
+			private function onTwitConfBtn():void{
 				conf = config(PopUpManager.createPopUp(this, config, true));
 
 				appUpdater.checkNow();
 
 				conf.showCloseButton = true;
-				conf.addEventListener("close", closeDialog);
+				conf.addEventListener("close", closeTwitConf);
 				conf.addEventListener("click", Mouse_Click_Dialog);
-				conf["send"].addEventListener("click", displayValue);
+				conf["send"].addEventListener("click", execTwitConf);
 				
 				conf.TwitterID.text = new String(twitterid);
 				conf.Password.text = new String(twitterpass);
@@ -720,13 +792,11 @@
 				
 			}
 
-			public function closeDialog(event:Event):void {
-
+			public function closeTwitConf(event:Event):void {
 				PopUpManager.removePopUp(conf);
-
 			}
 
-			public function displayValue(event:Event):void {
+			public function execTwitConf(event:Event):void {
 
 				trace(conf.TwitterID.text);
 				trace(conf.Password.text);
@@ -737,16 +807,17 @@
 					connectStreamingAPI();
 				}
 				
-				var f:File = File.applicationStorageDirectory;
+/*				var f:File = File.applicationStorageDirectory;
 				f = f.resolvePath("id.txt");
 				
 				var aStream:FileStream=new FileStream();
 				aStream.open(f,FileMode.WRITE);
 				aStream.writeUTFBytes("id=" + conf.TwitterID.text + ",pass=" + conf.Password.text + "\n");
-				aStream.close();
+				aStream.close();*/
 
 				PopUpManager.removePopUp(conf);
 			}
+
 
 			public function Mouse_Click():void {
 			}
@@ -754,6 +825,72 @@
 			public function Mouse_Click_Dialog(event:Event):void {
 			}
 			
+			private function onConfBtn():void{
+				conf2 = config2(PopUpManager.createPopUp(this, config2, true));
+
+				conf2.TwitterID.text = new String(twitterid);
+				conf2.Password.text = new String(twitterpass);
+				
+				conf2.params = params;
+
+				conf2.showCloseButton = true;
+				conf2.addEventListener("close", closeConf);
+				conf2["addParam"].addEventListener("click", onAddParam);
+				conf2["delParam"].addEventListener("click", onDelParam);
+				conf2["send"].addEventListener("click", onCheckParam);
+				conf2.param.selectedIndex = channelidx;
+				conf2.param.addEventListener(DataGridEvent.ITEM_EDIT_END, onEditEnd);
+				
+				PopUpManager.centerPopUp(conf2);
+				
+			}
+
+			public function onAddParam(event:Event):void{
+				conf2.params.addItem({channel:"#", resuser:"@", claphash:"#"});
+				trace(params);
+			}
+			public function onDelParam(event:Event):void{
+				var i:int = conf2.param.selectedIndex;
+				if (i >= 0){
+					conf2.params.removeItemAt(conf2.param.selectedIndex);
+				}
+			}
+			public function onCheckParam(event:Event):void{
+				var idx:int = conf2.param.selectedIndex;
+
+				if (idx == -1){
+					Alert.show("Select channel.", "Warning");
+					return;
+				}
+
+				if (
+						(twitterid != conf2.TwitterID.text)
+					||	(twitterpass != conf2.Password.text)
+					||	(channel != conf2.params[idx].channel)
+					||	(resuser != conf2.params[idx].resuser)
+					||	(claphash != conf2.params[idx].claphash)
+				){
+					params = conf2.params;
+					closeChannel();
+					channelidx = conf2.param.selectedIndex;
+			    	channel = new String(conf2.params[channelidx].channel);
+			    	resuser = new String(conf2.params[channelidx].resuser);
+			    	claphash = new String(conf2.params[channelidx].claphash);
+					twitterid = new String(conf2.TwitterID.text);
+					twitterpass = new String(conf2.Password.text);
+					openChannel();
+				}
+				
+				PopUpManager.removePopUp(conf2);
+			}
+			
+			public function onEditEnd(event:Event):void{
+				
+			}
+			public function closeConf(event:Event):void {
+				PopUpManager.removePopUp(conf2);
+			}
+
 			public function onClapBtn():void{
 				showClapDialog("CLAP!");
 			}
@@ -770,7 +907,10 @@
 				clp.addEventListener("close", clapclose);
 				clp.addEventListener("click", Mouse_Click_Dialog);
 				clp["send"].addEventListener("click", clapValue);
+				clp.addEventListener(KeyboardEvent.KEY_UP, clapKeyUp);
+				clp.claptext.addEventListener(Event.CHANGE, clapChg);
 
+				strChgCount = 0;
 				clp.claptext.text = "";
 
 				clp.width = this.width - 40;
@@ -778,12 +918,25 @@
 
 				saveTitle = new String(playingobj.title);
 				saveText1 = new String(str);
-				saveText2 = new String(" ～ http://youtu.be/" + playingobj.label + " DJ @" + playingobj.twdata["user"] + " #radioooo http://j.mp/blsJRR");
+				saveText2 = new String(" ～ http://youtu.be/" + playingobj.label + " DJ @" + playingobj.twdata["user"] + " " + claphash + " http://j.mp/blsJRR");
 
 				clp.claplabel.text = str + " " + playingobj.title + saveText2;
 				PopUpManager.centerPopUp(clp);
 			}
 
+			public function clapChg(event:Event):void{
+				trace(event.toString());
+				strChgCount = 1;
+			}
+			public function clapKeyUp(event:KeyboardEvent):void {
+				trace(strChgCount + ":" + event.toString());
+				if ((strChgCount == 0) && (event.keyCode==13)){
+					clapSend();
+				} 
+				else {
+					strChgCount = 0;
+				}
+			}
 			public function clapclose(event:Event):void {
 
 				PopUpManager.removePopUp(clp);
@@ -792,6 +945,11 @@
 
 			public function clapValue(event:Event):void {
 				trace("claptext = \"" + clp.claptext.text + "\"");
+				
+				clapSend();
+			}
+			
+			public function clapSend():void {
 				
 				var str1:String = new String(clp.claptext.text);
 				if (str1 != ""){

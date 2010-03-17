@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.7</version> 
+       <version>Alpha 0.1.8</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
-Version 0.1.7 <- 0.1.6 (2010/03/18)
+Version 0.1.8 <- 0.1.7 (2010/03/18)
 	! 過度のOQRは健康を害するおそれがありますので、用法を守って御使用下さい。
+	* チャンネル切り替え時に時間表示が止まるのを修正
+------------------------------------------------------------------------------------------
+Version 0.1.7 <- 0.1.6 (2010/03/18)
 	* チャンネル切り替え追加(簡易バージョン)：cfgから切り替えられます。
 	* リクエスト者アイコンロード時のエラー処理追加(まれに止まる症状の対応)
 	* CLAP/STANDがリターンキーでも送信可能

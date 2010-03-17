@@ -279,6 +279,10 @@
 				if (!tubePlayer) return;
 				if (tumblist.length == 0) return;
 
+				playTimer = new Timer(200,0);
+				playTimer.addEventListener(TimerEvent.TIMER, onPlayTimer);
+				playTimer.start();
+				
 				playNextMusic();
 			}
 			private function seaerr(event:Event):void{
@@ -513,10 +517,6 @@
 	
 				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
-				
-				playTimer = new Timer(200,0);
-				playTimer.addEventListener(TimerEvent.TIMER, onPlayTimer);
-				playTimer.start();
 				
 				tubePlayer.setVolume(vol);
 				playStart();

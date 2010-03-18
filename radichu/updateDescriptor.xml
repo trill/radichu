@@ -3,6 +3,10 @@
        <version>Alpha 0.1.9</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
+★バージョンアップしたらうまく動かなくなった場合：
+★XP:		C:\Documents and Settings\(ユーザ名)\Application Data\radichu.XXXXXXXXX(不定)
+★Vista/7:	C:\ユーザー\(ユーザ名)\AppData\Roaming\radichu.XXXXXXXXXX(不定)
+　のディレクトリを、radichuが起動していない状態で削除してみて下さい。
 Version 0.1.9 <- 0.1.8 (2010/03/18)
 	* 0.1.7～0.1.8を新規にインストールした場合、動かなくなっていたのを修正
 	* YoutubeのビデオURLをコピー(CTRL-C)した後、radichuにフォーカスがある状態でCTRL-Vを押すと

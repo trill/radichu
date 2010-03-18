@@ -5,11 +5,17 @@
 	 	<![CDATA[
 	 		private function creationComp():void{
 	 			this.addEventListener(IOErrorEvent.IO_ERROR, ioerror);
+	 			this.addEventListener(HTTPStatusEvent.HTTP_STATUS, httpsts);
 //	 			this.content.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, ioerror);
 	 		}
 	 		
-	 		private function ioerror(evt:Event):void{
-	 			trace("&&&&&&&&&&&&&&\nthumbnail.ioerror: " + evt);
+	 		private function ioerror(evt:IOErrorEvent):void{
+	 			trace("&&&&&&&&&&&&&&\nthumbnail.ioerror: " + evt.toString());
+	 		}
+	 		private function httpsts(evt:HTTPStatusEvent):void{
+	 			if (evt.status != 200){
+		 			trace("&&&&&&&&&&&&&&\nthumbnail.httpsts: " + evt.toString());
+		 		}
 	 		}
 	 	]]>
 	 </mx:Script>

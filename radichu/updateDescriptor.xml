@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.8</version> 
+       <version>Alpha 0.1.9</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
+Version 0.1.9 <- 0.1.8 (2010/03/18)
+	* 0.1.7～0.1.8を新規にインストールした場合、動かなくなっていたのを修正
+	* YoutubeのビデオURLをコピー(CTRL-C)した後、radichuにフォーカスがある状態でCTRL-Vを押すと
+	　今のチャンネルへリクエスト送信
+	* その他細々と修正
+------------------------------------------------------------------------------------------
 Version 0.1.8 <- 0.1.7 (2010/03/18)
-	! 過度のOQRは健康を害するおそれがありますので、用法を守って御使用下さい。
 	* チャンネル切り替え時に時間表示が止まるのを修正
 ------------------------------------------------------------------------------------------
 Version 0.1.7 <- 0.1.6 (2010/03/18)

@@ -5,6 +5,7 @@
 	 	<![CDATA[
 	 		private function creationComp():void{
 	 			this.addEventListener(IOErrorEvent.IO_ERROR, ioerror);
+//	 			this.content.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, ioerror);
 	 		}
 	 		
 	 		private function ioerror(evt:Event):void{

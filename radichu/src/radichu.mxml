@@ -33,6 +33,7 @@
     		import air.update.ApplicationUpdaterUI;
     		import mx.controls.List;
     		import mx.controls.Alert;
+    		import flash.desktop.Clipboard;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -88,6 +89,13 @@
 			private var resuser:String = new String();
 			private var claphash:String = new String();
 			private var params:ArrayCollection;
+			private var lastRequest:String = new String();
+			private static var defParams:ArrayCollection = new ArrayCollection([
+						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
+						{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
+						{channel:"#radioooo_kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
+					]);
+								
 
 			private function init():void
 			{
@@ -109,8 +117,9 @@
 				}
 				
 				this.addEventListener(Event.CLOSING, appExit);
+
+				var so:SharedObject = SharedObject.getLocal("appData");
 				
-			   var so:SharedObject = SharedObject.getLocal("appData");
 				if (so.size == 0){
 					trace("create sharedObject");
 					so.data.x = 100;
@@ -118,6 +127,8 @@
 					so.data.vol = 80;
 					so.data.twitterid = new String();
 					so.data.twitterpass = new String();
+		    		params = defParams;
+					channelidx = 0;
 				} else {
     				if( so.data.x < Capabilities.screenResolutionX && so.data.y < Capabilities.screenResolutionY ){
 	        			this.nativeWindow.x = so.data.x;
@@ -126,31 +137,25 @@
         				this.nativeWindow.x = 100;
         				this.nativeWindow.y = 100;
 			    	}
-			    	if (so.data.hasOwnProperty("width")  && so.data.hasOwnProperty("height")){
-			    		this.nativeWindow.width = so.data.width;
-			    		this.nativeWindow.height = so.data.height;
-			    	}
-			    	if (so.data.hasOwnProperty("params")){
-			    		params = so.data.params;
-			    		channelidx = so.data.channelidx;
-			    	}
-			    	else {
-			    		params = new ArrayCollection([
-								{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
-								{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
-								{channel:"#radioooo_kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
-							]);
-						channelidx = 0;
-			    	}
-			    	channel = new String(params[channelidx].channel);
-			    	resuser = new String(params[channelidx].resuser);
-			    	claphash = new String(params[channelidx].claphash);
-			    	twitterid = new String(so.data.twitterid);
-			    	twitterpass = new String(so.data.twitterpass);
-			    	vol = so.data.vol;
-							 
 				}
-			    
+			    if (so.data.hasOwnProperty("width")  && so.data.hasOwnProperty("height")){
+			    	this.nativeWindow.width = so.data.width;
+			    	this.nativeWindow.height = so.data.height;
+			    }
+			    if (so.data.hasOwnProperty("params") && so.data.params.length != 0){
+			    	params = so.data.params;
+			    	channelidx = so.data.channelidx;
+			    }
+			    else {
+			    	params = defParams;
+					channelidx = 0;
+			    }
+			    twitterid = new String(so.data.twitterid);
+			    twitterpass = new String(so.data.twitterpass);
+			    channel = new String(params[channelidx].channel);
+			    resuser = new String(params[channelidx].resuser);
+			    claphash = new String(params[channelidx].claphash);
+			    vol = so.data.vol;
 				
 				volslider.value = vol;
 				URLRequestDefaults.useCache = true;
@@ -185,14 +190,15 @@
 			}
 
 			private function openChannel():void{
+				addStatusLog("Opening channel [" + channel + "]");
+				getInitialRequests();
+
 				if (twitterid!=""){
 					streamflg = true;
 					connectStreamingAPI();
 				} else {
 					onTwitConfBtn();
 				}
-
-				getInitialRequests();
 			}			
 
 			private function closeChannel():void{
@@ -201,8 +207,10 @@
 					streamflg = false;
 				}
 				
-				playTimer.stop();
-				playTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, onPlayTimer);
+				if (playTimer != null){
+					playTimer.stop();
+					playTimer.removeEventListener(TimerEvent.TIMER_COMPLETE, onPlayTimer);
+				}
 				startflg = false;
 				initflg = true;
 				playingobj = new Object();
@@ -218,8 +226,48 @@
 				tubePlayer.stopVideo();
 		
 			}
-			
-			private function ferr(evt:Event):void {
+
+			private function onPaste(evt:KeyboardEvent):void{
+				trace("onPaste: " + evt.toString());
+				if ((evt.keyCode == 86) && (evt.ctrlKey == true)){
+					var str:String;
+					str = Clipboard.generalClipboard.getData(ClipboardFormats.URL_FORMAT) as String;
+					if (str != null){
+						trace(str);
+						var reg:RegExp = new RegExp("v=([^&=]{11})","");
+						var ar:Array = reg.exec(str);
+						if ((ar != null) && (ar.length > 1)){
+							var str2:String = resuser + " " + ar[1] + " " + channel;
+							if (lastRequest == str2){
+								return;
+							}
+							lastRequest = new String(str2);
+							service = new HTTPService;
+							service.method = "post";
+							service.url = "http://api.twitter.com/1/statuses/update.json";
+							service.resultFormat = "text";
+							service.addEventListener(ResultEvent.RESULT, sendcomp);
+							service.addEventListener(FaultEvent.FAULT, senderr);
+
+							var enc:Base64Encoder = new Base64Encoder();
+							enc.encodeUTFBytes(twitterid + ":" + twitterpass);
+
+							var forms:URLVariables = new URLVariables();
+							forms.status = str2
+							service.headers["Authorization"] = "Basic " + enc.flush();
+							service.request = forms;
+							service.send();
+				
+							addStatusLog("Posted request(" + ar[1] + ") to twitter");
+
+							trace(str2);
+						}
+					}
+
+				}
+			}
+					
+/*			private function ferr(evt:Event):void {
 				trace("ferr : " + evt.toString());
 				
 				
@@ -227,7 +275,7 @@
 			
 			private function fread(evt:Event):void {
 				trace("file read ok");
-			}
+			}*/
 			
 			private function getInitialRequests():void{
 				var header:URLRequestHeader = new URLRequestHeader("pragma", "no-cache");
@@ -364,7 +412,9 @@
 					trace("tumblist.length = " + tumblist.length);
 					trace("quedMusic.length = " + quedMusic.length);
 					initflg = false;
-					addStatusLog("Complete load tumbnails.");
+					if (tumblist.length != 0){
+						addStatusLog("Complete load tumbnails.");
+					}
 				}
 				
 				if (!startflg){
@@ -517,6 +567,7 @@
 	
 				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
+				this.stage.addEventListener(KeyboardEvent.KEY_UP, onPaste);
 				
 				tubePlayer.setVolume(vol);
 				playStart();

@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.10</version> 
+       <version>Alpha 0.1.11</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：
 ★XP:		C:\Documents and Settings\(ユーザ名)\Application Data\radichu.XXXXXXXXX(不定)
 ★Vista/7:	C:\ユーザー\(ユーザ名)\AppData\Roaming\radichu.XXXXXXXXXX(不定)
 ★のディレクトリを、radichuが起動していない状態で削除してみて下さい。
+------------------------------------------------------------------------------------------
+Version 0.1.11 <- 0.1.10 (2010/03/20)
+	* URLをドロップするエリアを拡大
+	* 複数チャンネル指定時、リクエストも複数チャンネルに送るよう修正
 ------------------------------------------------------------------------------------------
 Version 0.1.10 <- 0.1.9 (2010/03/20)
 	★修正箇所が多いので人柱度が高いです

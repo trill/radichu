@@ -246,7 +246,11 @@
 						var reg:RegExp = new RegExp("v=([^&=]{11})","");
 						var ar:Array = reg.exec(str);
 						if ((ar != null) && (ar.length > 1)){
-							var str2:String = resuser + " " + ar[1] + " " + channel;
+							var str2:String = resuser + " " + ar[1];
+							var ar2:Array = queryChannel.split(",");
+							for (var i:int = 0; i <  ar2.length; i++){
+								str2 += " " + ar2[i];
+							}
 							if (lastRequest == str2){
 								return;
 							}
@@ -526,6 +530,13 @@
 				inObj.title = str2;
 				inObj.htmltitle = title;
 				inObj.twdata = urllist[0].obj;
+				for (var i:int = 0; i < tumblist.length; i++){
+					if (tumblist[i].label == id){
+						addStatusLog("Same request in playing que.");
+						trace("Same request in playing que");
+						urlloaderend();
+					}
+				}
 				if (urllist[0].flg == true){
 //					tumblist.addItemAt({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj},0);
 					tumblist.addItemAt(inObj,0);
@@ -565,16 +576,28 @@
 
 			private function onDragEnter(evt:NativeDragEvent):void{
 				trace("onDragEnter: " + evt.toString());
-				var ar:Array = evt.clipboard.formats;
-				var f:Boolean = false;
+				if (checkDropFormat(evt.clipboard.formats)){
+					NativeDragManager.acceptDragDrop(movieHBox);
+				}
+			}
+			
+			private function onDragEnter2(evt:NativeDragEvent):void{
+				trace("onDragEnter: " + evt.toString());
+				if (checkDropFormat(evt.clipboard.formats)){
+					NativeDragManager.acceptDragDrop(dropArea);
+				}
+			}
+			
+			private function checkDropFormat(ar:Array):Boolean{
 				for (var i:int = 0; i < ar.length; i++){
 					trace("xx: " + ar[i]);
 					if (	(ar[i].toString() == ClipboardFormats.URL_FORMAT) ||
 							(ar[i].toString() == ClipboardFormats.TEXT_FORMAT	)	){
-						NativeDragManager.acceptDragDrop(back);
+						return true;
 					}
 				}
-			}	
+				return false;
+			}
 			
 			private function onDragDrop(evt:NativeDragEvent):void{
 				trace("onDragDrop: " + evt.toString());
@@ -596,7 +619,11 @@
 				var reg:RegExp = new RegExp("v=([^&=]{11})","");
 				var ar:Array = reg.exec(str);
 				if ((ar != null) && (ar.length > 1)){
-					var str2:String = resuser + " " + ar[1] + " " + channel;
+					var str2:String = resuser + " " + ar[1];
+					var ar2:Array = queryChannel.split(",");
+					for (var i:int = 0; i <  ar2.length; i++){
+						str2 += " " + ar2[i];
+					}
 					if (lastRequest == str2){
 						return;
 					}
@@ -644,17 +671,19 @@
 				youtubeBox.addEventListener(Event.RESIZE,stageResize);
 				var appWin:NativeWindow = this.stage.nativeWindow;
 				
-//				dropArea.alpha = 0; 
-/*				this.stage.addChild(dropArea);
+				dropArea.alpha = 0;
+				tubePlayer.addChild(dropArea);
 				var g : Graphics = dropArea.graphics;
 				g.beginFill (0x000000, 0.0);
-				g.drawRect ( 0, 0 , appWin.width , appWin.height);
-				g.endFill ();*/
+				g.drawRect ( 0, 0 , movieHBox.width , movieHBox.height);
+				g.endFill ();
 				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				this.stage.addEventListener(KeyboardEvent.KEY_UP, onPaste);
-				back.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
-				back.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
+				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter2);
+				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
 //				tubePlayer.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
 //				tubePlayer.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
 //				youtubeBox.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
@@ -1253,7 +1282,7 @@
 
 	</mx:Script>
 	<mx:VBox id="back" left="5" top="5" right="5" bottom="5" horizontalAlign="center" verticalAlign="bottom">
-		<mx:HBox height="100%" width="100%">
+		<mx:HBox id="movieHBox" height="100%" width="100%">
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
 			<mx:HBox height="100%">
 				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">

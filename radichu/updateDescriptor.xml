@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.12</version> 
+       <version>Alpha 0.1.13</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：
 ★XP:		C:\Documents and Settings\(ユーザ名)\Application Data\radichu.XXXXXXXXX(不定)
 ★Vista/7:	C:\ユーザー\(ユーザ名)\AppData\Roaming\radichu.XXXXXXXXXX(不定)
 ★のディレクトリを、radichuが起動していない状態で削除してみて下さい。
+------------------------------------------------------------------------------------------
+Version 0.1.13 <- 0.1.12 (2010/03/21)
+	* URLドロップでリクエストできなくなっていたのを修正
 ------------------------------------------------------------------------------------------
 Version 0.1.12 <- 0.1.11 (2010/03/21)
 	★修正箇所が多いので不具合の出る可能性があります

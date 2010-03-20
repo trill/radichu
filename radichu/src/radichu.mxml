@@ -701,7 +701,7 @@
 					if (lastRequest == str2){
 						return;
 					}
-					if ((playingobj != null) && (playingobj.id != str2)){
+					if ((playingobj != null) && (playingobj.id == ar[1])){
 						return;
 					}
 					lastRequest = new String(str2);

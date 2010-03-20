@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mx:Image xmlns:mx="http://www.adobe.com/2006/mxml" width="64" height="64" 
-	 creationComplete="creationComp()" scaleContent="true" autoLoad="true" toolTip="{data.title}">
+	 creationComplete="creationComp()" scaleContent="true" autoLoad="true" toolTip="{data.tumbtitle}">
 	 <mx:Script>
 	 	<![CDATA[
 	 		private function creationComp():void{

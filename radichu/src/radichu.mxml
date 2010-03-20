@@ -93,6 +93,9 @@
 			private var params:ArrayCollection;
 			private var lastRequest:String = new String();
 			private var dropArea:Sprite = new Sprite();
+			private var dragFile:File;
+			private var iconloader:URLLoader = new URLLoader();
+			private var tumbloader:URLLoader = new URLLoader();
 
 			private static var defParams:ArrayCollection = new ArrayCollection([
 						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
@@ -322,7 +325,7 @@
 							var tdata:Object = new Object();
 							tdata["user"] = obj["results"][i]["from_user"];
 							tdata["usericon"] = obj["results"][i]["profile_image_url"];
-							initmusicList.addItem({label:result[1], twdata:tdata});
+							initmusicList.addItem({id:result[1], twdata:tdata});
 							break;
 						}
 					}
@@ -424,7 +427,7 @@
 			private function getMusicDetail():void{
 				trace("getMusicDetail: " + initmusicCursor.afterLast);
 				if(!initmusicCursor.afterLast && (tumblist.length < 16)){
-					getYoutubeDetail(initmusicCursor.current.label,initmusicCursor.current.twdata, false);
+					getYoutubeDetail(initmusicCursor.current.id,initmusicCursor.current.twdata, false);
 					initmusicCursor.moveNext();
 				} else {
 					while(!initmusicCursor.afterLast){
@@ -514,7 +517,18 @@
 					trace("noresult: " + str);
 					urlloaderend();
 				}
-				var inObj:BindObj = new BindObj();
+
+				var req:URLRequest = new URLRequest(tumburl[1]);
+				tumbloader.addEventListener(Event.COMPLETE, ontumbcomp);
+				tumbloader.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS, ontumbresponse);
+				tumbloader.addEventListener(HTTPStatusEvent.HTTP_STATUS, ontumbstatus);
+				tumbloader.addEventListener(IOErrorEvent.IO_ERROR, ontumberror);
+				tumbloader.load(req);
+
+				urllist[0]["title"] = title;
+				urllist[0]["tumburl"] = tumburl[1];
+				
+/*				var inObj:BindObj = new BindObj();
 				inObj.label = id;
 				inObj.tumburl = tumburl[1];
 				inObj.htmltitle = title;
@@ -530,11 +544,13 @@
 				inObj.title = str2;
 				inObj.htmltitle = title;
 				inObj.twdata = urllist[0].obj;
+				inObj.tumbtitle = title + "\n(" + inObj.twdata["user"] + ")";
 				for (var i:int = 0; i < tumblist.length; i++){
 					if (tumblist[i].label == id){
 						addStatusLog("Same request in playing que.");
 						trace("Same request in playing que");
 						urlloaderend();
+						return;
 					}
 				}
 				if (urllist[0].flg == true){
@@ -544,15 +560,73 @@
 				} else {
 //					tumblist.addItem({label:id, tumburl:tumburl[1], title:title, twdata:urllist[0].obj});
 					tumblist.addItem(inObj);
-					tumblist.refresh();
-					tumb.validateNow();
 					trace("add imageurl at last");
 				}
+				tumblist.refresh();
+				tumb.validateNow();
+
+				urlloaderend();*/
+			}
+			
+			private function ontumbcomp(e:Event):void{
+				trace(e.toString());
+				var inObj:BindObj = new BindObj();
+//				inObj.label = urllist[0].id;
+				var title:String = urllist[0].title;
+				inObj.label = tumbloader;
+				inObj.id = urllist[0].id;
+				inObj.tumburl = urllist[0].tumburl;
+				inObj.htmltitle = title;
+				var str2:String = new String(title);
+				var rep:RegExp = new RegExp("&amp;","g");
+				str2 = str2.replace(rep, "&");
+				rep = new RegExp("&lt;","g");
+				str2 = str2.replace(rep, "<");
+				rep = new RegExp("&gt;","g");
+				str2 = str2.replace(rep, ">");
+				rep = new RegExp("@","g");
+				str2 = str2.replace(rep, "＠");
+				inObj.loader = tumbloader;
+				inObj.title = str2;
+				inObj.htmltitle = title;
+				inObj.twdata = urllist[0].obj;
+				inObj.tumbtitle = str2 + "\n(" + inObj.twdata["user"] + ")";
+				for (var i:int = 0; i < tumblist.length; i++){
+					if (tumblist[i].id == id){
+						addStatusLog("Same request in playing que.");
+						trace("Same request in playing que");
+						urlloaderend();
+						return;
+					}
+				}
+				if (urllist[0].flg == true){
+					tumblist.addItemAt(inObj,0);
+					trace("add imageurl at top");
+				} else {
+					tumblist.addItem(inObj);
+					trace("add imageurl at last");
+				}
+				tumblist.refresh();
+				tumb.validateNow();
 
 				urlloaderend();
 			}
-			
-			private function urlloaderioerror(e:Event):void{
+			private function ontumbresponse(e:HTTPStatusEvent):void{
+				trace(e.toString());
+				tumbloader.dataFormat = URLLoaderDataFormat.TEXT;
+				if (e.status != 200){
+					addStatusLog("HTTP Response: " + e.status);
+					urlloaderend();
+				}
+			}
+			private function ontumbstatus(e:HTTPStatusEvent):void{
+				trace(e.toString());
+			}
+			private function ontumberror(e:IOErrorEvent):void{
+				trace(e.toString());
+			}
+
+			private function urlloaderioerror(e:IOErrorEvent):void{
 				trace(e);
 				
 				urlloaderend();
@@ -627,6 +701,9 @@
 					if (lastRequest == str2){
 						return;
 					}
+					if ((playingobj != null) && (playingobj.id != str2)){
+						return;
+					}
 					lastRequest = new String(str2);
 					service = new HTTPService;
 					service.method = "post";
@@ -650,7 +727,52 @@
 					addStatusLog("Can't recoginize string : \"" + str + "\"");
 				}
 			}
-			
+
+			private function onMouseDown(evt:Event):void{
+				var clip:Clipboard = new Clipboard();
+				var str:String;
+				
+				if (playingobj != null){
+					var f:File = File.applicationStorageDirectory;
+					var t:String = new String(playingobj.title);
+					var reg:RegExp = new RegExp("[\\/,;:*?\"<>|]","g");
+					t = t.replace(reg, " ");
+					trace(t);
+					f = f.resolvePath(t + ".url");
+					var fs:FileStream = new FileStream();
+					fs.addEventListener(IOErrorEvent.IO_ERROR, onDragFileError);
+					fs.open(f, FileMode.WRITE);
+					str = new String(
+						"[InternetShortcut]\nURL=" +
+						"http://www.youtube.com/watch?v=" + playingobj.id + "\n"
+						);
+					fs.writeUTFBytes(str);
+					fs.close();
+					var ar:Array = [f];
+					dragFile = f;
+					clip.setData(ClipboardFormats.FILE_LIST_FORMAT, ar);
+					clip.setData(ClipboardFormats.URL_FORMAT, "http://www.youtube.com/watch?v=" + playingobj.id);
+					clip.setData(ClipboardFormats.TEXT_FORMAT, "http://www.youtube.com/watch?v=" + playingobj.id);
+				}
+				NativeDragManager.doDrag(movieHBox, clip);
+			}	
+
+			private function onDragComp(evt:Event):void{
+				var tim:Timer = new Timer(2000,1);
+				tim.addEventListener(TimerEvent.TIMER, onRemoveTimer);
+				tim.start();
+			}
+
+			private function onRemoveTimer(evt:Event):void{
+				try{
+					dragFile.deleteFile();
+				} catch (err:Error) {
+					trace(err);
+				}
+			}			
+			private function onDragFileError(evt:Event):void{
+				trace(evt);
+			}					
 			private function loaderInit(evt:Event):void
 			{
 				youtubeBox.rawChildren.addChild(loader);
@@ -691,6 +813,10 @@
 //				this.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
 //				this.stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
 //				this.stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+				movieHBox.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, onDragComp);
+				dropArea.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, onDragComp);
 				
 				tubePlayer.setVolume(vol);
 				playStart();
@@ -739,6 +865,10 @@
 			{
 				youtubeBox.validateNow();
 				tubePlayer.setSize(youtubeBox.width, youtubeBox.height);
+				var g : Graphics = dropArea.graphics;
+				g.beginFill (0x000000, 0.0);
+				g.drawRect ( 0, 0 , movieHBox.width , movieHBox.height);
+				g.endFill ();
 				trace("Resize!" + youtubeBox.width + ":" + youtubeBox.height);
 			}
 			private function playerError(evt:Event):void
@@ -818,7 +948,7 @@
 					var m:int = tumblist.length;
 					var c:int = 0;
 					for (i = 0; i < m; i++){
-						trace(i + "\t" + tumblist[i].label + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
+						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
 					}
 					trace("------------------------");
 					for (i = 0;i < m; i++){
@@ -849,29 +979,29 @@
 						trace("too many same person's requests");
 					}
 					for (i = 0; i < m; i++){
-						trace(i + "\t" + tumblist[i].label + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
+						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
 					}
 			}
 			
 			private function playNextMusic():void{
 				trace("playNextMusic");
 				var str:String = new String();
-				trace("music : " + playingobj.label + "->" + tumblist[0].label);
-				if ((tumblist.length != 0) && (tumblist[0].label != null)){
+				trace("music : " + playingobj.id + "->" + tumblist[0].id);
+				if ((tumblist.length != 0) && (tumblist[0].id != null)){
 
 
-					if ((playingobj != null) && playingobj.hasOwnProperty("label")){
-						trace("add to played music : " + playingobj.label);
+					if ((playingobj != null) && playingobj.hasOwnProperty("id")){
+						trace("add to played music : " + playingobj.id);
 						playedMusic.addItem(playingobj);
 						playlistcheck();
 					}
 					try{
 						if (hqMode){
-							tubePlayer.loadVideoById(tumblist[0].label,0,"hd720");
+							tubePlayer.loadVideoById(tumblist[0].id,0,"hd720");
 //							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
 						}
 						else {
-							tubePlayer.loadVideoById(tumblist[0].label);
+							tubePlayer.loadVideoById(tumblist[0].id);
 //							tubePlayer.cueVideoById(tumblist[0].label);
 						}
 					}
@@ -882,31 +1012,36 @@
 					startflg = true;
 					this.btnSkip.enabled = true;
 					playingobj = tumblist[0];
-					titledata = "<a href=\"http://youtu.be/" + tumblist[0].label + "\">" + tumblist[0].htmltitle + "</a>";
+					titledata = "<a href=\"http://youtu.be/" + tumblist[0].id + "\">" + tumblist[0].htmltitle + "</a>";
 					userurl.label = tumblist[0].twdata["user"];
 					twitimg.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
-					twitimg.source = tumblist[0].twdata["usericon"];
+//					twitimg.source = tumblist[0].twdata["usericon"];
+					twitimg.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
+					twitimg.load(tumblist[0].twdata["usericon"]);
 					this.title = tumblist[0].title + " - radichu";
 					trace(tumb.rowCount, tumb.columnCount);
 					tumblist.removeItemAt(0);
 				
 					if (quedMusic.length != 0){
 						var n:int = quedMusic.length - 1;
-						trace("add from qued music : " + quedMusic[n].label);
+						trace("add from qued music : " + quedMusic[n].id);
 						if ((quedMusic[n].tumburl == null) || quedMusic[n].tumburl == ""){
 							trace("need to get data");
-							getYoutubeDetail(quedMusic[n].label,quedMusic[n].twdata, false);
+							getYoutubeDetail(quedMusic[n].id,quedMusic[n].twdata, false);
 						} else {
 							trace("not need to get data");
 							tumblist.addItem(quedMusic[n]);
 						}
 						quedMusic.removeItemAt(n);
 					} else if (playedMusic.length != 0) {
-						trace("add from played music : " + playedMusic[0].label);
+						trace("add from played music : " + playedMusic[0].id);
 						tumblist.addItem(playedMusic[0]);
 						playedMusic.removeItemAt(0);
 					}
 				}
+			}
+			
+			private function onIconComp(evt:Event):void{
 			}
 			
 			private function addMusicData(id:String, obj:Object):void{
@@ -1044,7 +1179,7 @@
 				if (
 						(twitterid != conf2.TwitterID.text)
 					||	(twitterpass != conf2.Password.text)
-					||	(channel != conf2.params[idx].channel)
+					||	(queryChannel != conf2.params[idx].channel)
 					||	(resuser != conf2.params[idx].resuser)
 					||	(claphash != conf2.params[idx].claphash)
 				){
@@ -1122,7 +1257,7 @@
 
 				saveTitle = new String(playingobj.title);
 				saveText1 = new String(str);
-				saveText2 = new String(" ～ http://youtu.be/" + playingobj.label + " DJ @" + playingobj.twdata["user"] + " " + claphash + " http://j.mp/blsJRR");
+				saveText2 = new String(" ～ http://youtu.be/" + playingobj.id + " DJ @" + playingobj.twdata["user"] + " " + claphash + " http://j.mp/blsJRR");
 
 				clp.claplabel.text = str + " " + playingobj.title + saveText2;
 				PopUpManager.centerPopUp(clp);

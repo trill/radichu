@@ -35,6 +35,8 @@
     		import mx.controls.Alert;
     		import flash.desktop.Clipboard;
     		import flash.desktop.*;
+    		import flash.events.Event;
+    		import mx.formatters.DateFormatter;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -102,7 +104,6 @@
 						{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
 						{channel:"#radioooo_kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
 					]);
-								
 
 			private function init():void
 			{
@@ -325,6 +326,7 @@
 							var tdata:Object = new Object();
 							tdata["user"] = obj["results"][i]["from_user"];
 							tdata["usericon"] = obj["results"][i]["profile_image_url"];
+							tdata["date"] = DateConv.parseDate(obj["results"][i]["created_at"]);
 							initmusicList.addItem({id:result[1], twdata:tdata});
 							break;
 						}
@@ -728,10 +730,16 @@
 				}
 			}
 
-			private function onMouseDown(evt:Event):void{
+			private function onMouseDownVol(evt:MouseEvent):void{
+				trace("Stop MouseDownEvent: " + evt.toString());
+				evt.stopPropagation();
+				
+			}
+			private function onMouseDown(evt:MouseEvent):void{
 				var clip:Clipboard = new Clipboard();
 				var str:String;
-				
+
+				trace("onMoudeDown: " + evt);
 				if (playingobj != null){
 					var f:File = File.applicationStorageDirectory;
 					var t:String = new String(playingobj.title);
@@ -799,11 +807,13 @@
 				g.beginFill (0x000000, 0.0);
 				g.drawRect ( 0, 0 , movieHBox.width , movieHBox.height);
 				g.endFill ();
-				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
-				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
-				this.stage.addEventListener(KeyboardEvent.KEY_UP, onPaste);
+//				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
+//				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
+//				this.stage.addEventListener(KeyboardEvent.KEY_UP, onPaste);
+				movieHBox.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
 				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+				dropArea.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter2);
 				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
 //				tubePlayer.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragEnter);
@@ -817,7 +827,7 @@
 				movieHBox.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, onDragComp);
 				dropArea.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
 				dropArea.addEventListener(NativeDragEvent.NATIVE_DRAG_COMPLETE, onDragComp);
-				
+				volslider.addEventListener(MouseEvent.MOUSE_DOWN, onMouseDownVol);
 				tubePlayer.setVolume(vol);
 				playStart();
 			}
@@ -1016,9 +1026,12 @@
 					userurl.label = tumblist[0].twdata["user"];
 					twitimg.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
 //					twitimg.source = tumblist[0].twdata["usericon"];
+					twitimg.loaderInfo.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
+					twitimg.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
 					twitimg.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
 					twitimg.load(tumblist[0].twdata["usericon"]);
 					this.title = tumblist[0].title + " - radichu";
+					reqtime.text = "Req: " + DateConv.toDispTime(tumblist[0].twdata["date"]);
 					trace(tumb.rowCount, tumb.columnCount);
 					tumblist.removeItemAt(0);
 				
@@ -1054,10 +1067,17 @@
 				var tdata:Object = new Object();
 				tdata["user"] = obj["user"]["screen_name"];
 				tdata["usericon"] = obj["user"]["profile_image_url"];
+				tdata["date"] = DateConv.parseDate2(obj["created_at"]);
 				addStatusLog("Add request : " + id + " by " + tdata["user"]);
 				getYoutubeDetail(id, tdata);
 			}
 
+			private function iconstatus(evt:HTTPStatusEvent):void{
+				trace("iconstatus: " + evt.toString());
+				if (evt.status != 200){
+					
+				}
+			}
 			private function iconerror(evt:Event):void{
 				trace("iconerror: " + evt.toString());				
 			}			
@@ -1450,8 +1470,9 @@
 						<mx:HBox width="200" cornerRadius="5" borderStyle="solid" borderThickness="5" backgroundColor="#cccccc" borderColor="#cccccc" alpha="1.0">
 							<mx:Image id="twitimg" width="48" height="48" scaleContent="true"/>
 							<mx:VBox width="100%" height="48" backgroundAlpha="1.0" alpha="1.0" verticalAlign="middle" borderColor="#cccccc" backgroundColor="#cccccc">
-								<mx:Label text="Request:"  alpha="1.0" fontStyle="italic" fontSize="11" height="50%"/>
-								<mx:LinkButton id="userurl" click="onUserUrl()" width="125" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
+					<!--			<mx:Label text="Request:"  alpha="1.0" fontStyle="italic" fontSize="11" height="100%"/>-->
+								<mx:Label id="reqtime" text=""  alpha="1.0" fontSize="10" height="100%"/>
+								<mx:LinkButton id="userurl" click="onUserUrl()" width="130" height="100%" alpha="1.0" color="#000000" fontSize="11"/>
 							</mx:VBox>
 						</mx:HBox>
 						<mx:TextArea id="playStatus" width="100%" height="24" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc" textAlign="center" fontSize="9"/>

@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.14</version> 
+       <version>Alpha 0.1.15</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：
 ★XP:		C:\Documents and Settings\(ユーザ名)\Application Data\radichu.XXXXXXXXX(不定)
 ★Vista/7:	C:\ユーザー\(ユーザ名)\AppData\Roaming\radichu.XXXXXXXXXX(不定)
 ★のディレクトリを、radichuが起動していない状態で削除してみて下さい。
+------------------------------------------------------------------------------------------
+Version 0.1.15 <- 0.1.14 (2010/03/23)
+	* Flex3.2->3.5aにバージョンアップ
+	* ドラッグ中に曲が変わるとリクエスト送信してしまうのを修正
+	* Twitter streaming APIエラー時処理修正
+	* 次曲再生出来ない時のガード処理追加
 ------------------------------------------------------------------------------------------
 Version 0.1.14 <- 0.1.13 (2010/03/21)
 	* ボリュームがマウスドラッグで変化できなくなっていたのを修正

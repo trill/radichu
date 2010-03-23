@@ -37,6 +37,7 @@
     		import flash.desktop.*;
     		import flash.events.Event;
     		import mx.formatters.DateFormatter;
+			import flash.system.Capabilities;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -98,6 +99,8 @@
 			private var dragFile:File;
 			private var iconloader:URLLoader = new URLLoader();
 			private var tumbloader:URLLoader = new URLLoader();
+			private var dragfrom:Boolean = false;
+			private var guardTimer:Timer;
 
 			private static var defParams:ArrayCollection = new ArrayCollection([
 						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
@@ -178,6 +181,18 @@
 				var appXML:XML = NativeApplication.nativeApplication.applicationDescriptor;
 				var ns:Namespace = appXML.namespace();
 				addStatusLog("Starting radichu " + appXML.ns::version);
+
+	            if (Capabilities.isDebugger) {
+	            	trace("Degub Flash version : " + Capabilities.version);
+	            	addStatusLog("Degub Flash version : " + Capabilities.version);
+        	    } else {
+	            	addStatusLog("Flash version : " + Capabilities.version);
+            	}
+
+				Security.loadPolicyFile("http://www.youtube.com/crossdomain.xml");
+				Security.loadPolicyFile("http://i.ytimg.com/crossdomain.xml");
+				Security.loadPolicyFile("http://s.ytimg.com/crossdomain.xml");
+				Security.loadPolicyFile("http://s2.ytimg.com/crossdomain.xml");
 				
 				openChannel();
 			}
@@ -364,9 +379,11 @@
 
 				
 				sock.addEventListener(Event.CONNECT, connectHandler);
-			    sock.addEventListener(IOErrorEvent.IO_ERROR, function():void{trace("ERROR");});
+			    sock.addEventListener(IOErrorEvent.IO_ERROR, sockerror);
     			sock.addEventListener(ProgressEvent.SOCKET_DATA, handleData);
+    			sock.addEventListener(Event.CLOSE, sockclose);
     			trace("connect to stream.twitter.com");
+    			addStatusLog("connect to twitter streaming API");
     			sock.connect("stream.twitter.com", 80);
 			}
 
@@ -414,16 +431,40 @@
     				if(text == null || text[1] == null) continue;
 					var arg:Array = tx.match(regnewtwit);
 					if (arg == null) continue;
-					var obj:Object = JSON.decode(arg[0]);
-    				trace("text: " + text[1] + " : " + ar[i]);
-    				addMusicData(text[1],obj);
-    				break;
+					try{
+						var obj:Object = JSON.decode(arg[0]);
+	    				trace("text: " + text[1] + " : " + ar[i]);
+    					addMusicData(text[1],obj);
+	    				break;
+					} catch (err:Error) {
+						addStatusLog("JSON decode error.");
+						trace("JSON.decode error: " + err.toString());
+						trace(arg[1]);
+					}
 				}
 			}
 
-			private function closeConnection():void{
+			private function sockerror(evt:IOErrorEvent):void{
+				trace("sockioerror: "+ evt.toString());
+				addStatusLog("Streaming API connection error.");
+				sock.close();
+				reconnectSocket();
+			}
 
-			    sock.close();
+			private function sockclose(evt:Event):void{
+				trace("sockclose: " + evt.toString());
+				addStatusLog("Streaming API conection closed.");
+				reconnectSocket();
+			}
+
+			private function reconnectSocket():void{
+				var t:Timer = new Timer(10000,1);
+				t.addEventListener(TimerEvent.TIMER, reconnectTimer);
+				t.start();
+			}			
+
+			private function reconnectTimer(evt:TimerEvent):void{
+				connectStreamingAPI();
 			}
 
 			private function getMusicDetail():void{
@@ -665,6 +706,9 @@
 			}
 			
 			private function checkDropFormat(ar:Array):Boolean{
+				if (dragfrom){
+					return false;
+				}
 				for (var i:int = 0; i < ar.length; i++){
 					trace("xx: " + ar[i]);
 					if (	(ar[i].toString() == ClipboardFormats.URL_FORMAT) ||
@@ -762,10 +806,12 @@
 					clip.setData(ClipboardFormats.URL_FORMAT, "http://www.youtube.com/watch?v=" + playingobj.id);
 					clip.setData(ClipboardFormats.TEXT_FORMAT, "http://www.youtube.com/watch?v=" + playingobj.id);
 				}
+				dragfrom = true;
 				NativeDragManager.doDrag(movieHBox, clip);
 			}	
 
 			private function onDragComp(evt:Event):void{
+				dragfrom = false;
 				var tim:Timer = new Timer(2000,1);
 				tim.addEventListener(TimerEvent.TIMER, onRemoveTimer);
 				tim.start();
@@ -885,22 +931,31 @@
 			{
 
 				trace("player error:$$$$$$$$$$$$$$$$$$$\n" + Object(evt).data);
-				
-				playNextMusic();
+				tubePlayer.stopVideo();
+				if (Object(evt).data == 0){
+					addStatusLog("Player error : " + Object(evt).data) + " reload";
+					tubePlayer(playingobj.id);
+				} else {
+					addStatusLog("Player error : " + Object(evt).data) + "next";
+					playNextMusic();
+				}
 			}
 			
 			private function playerStateChange(evt:Event):void
 			{
 
 				trace("playerStateChange : " + Object(evt).data);
+				if ((guardTimer != null) && (Object(evt).data != -1)){
+					guardTimer.stop();
+				}
 				switch ( Object(evt).data ) {
 					case -1:	// not start plaing
 						playerQualityCheck = false;
-						trace(userPlay);
+//						trace(userPlay);
 						if (!userPlay && playingobj && playingobj.hasOwnProperty("title")){
 							userPlay = true;
 //							tubePlayer.playVideo();
-							trace(lasttime);					// シークするとplay endイベントがなぜかこない？
+//							trace(lasttime);					// シークするとplay endイベントがなぜかこない？
 							tubePlayer.seekTo(lasttime,true);
 
 						} else {
@@ -957,10 +1012,10 @@
 					var x:int;
 					var m:int = tumblist.length;
 					var c:int = 0;
-					for (i = 0; i < m; i++){
+/*					for (i = 0; i < m; i++){
 						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
 					}
-					trace("------------------------");
+					trace("------------------------");*/
 					for (i = 0;i < m; i++){
 						if (tumblist[i].twdata["user"] != sss){
 							c++;
@@ -988,9 +1043,9 @@
 					} else {
 						trace("too many same person's requests");
 					}
-					for (i = 0; i < m; i++){
+/*					for (i = 0; i < m; i++){
 						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
-					}
+					}*/
 			}
 			
 			private function playNextMusic():void{
@@ -1006,6 +1061,13 @@
 						playlistcheck();
 					}
 					try{
+						if (guardTimer != null){
+							guardTimer.stop();
+						}
+						guardTimer = new Timer(5000, 1);
+						guardTimer.addEventListener(TimerEvent.TIMER, onGuardTimer);
+						guardTimer.start();
+						trace("loadVideoById: " + tumblist[0].id);
 						if (hqMode){
 							tubePlayer.loadVideoById(tumblist[0].id,0,"hd720");
 //							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
@@ -1032,7 +1094,7 @@
 					twitimg.load(tumblist[0].twdata["usericon"]);
 					this.title = tumblist[0].title + " - radichu";
 					reqtime.text = "Req: " + DateConv.toDispTime(tumblist[0].twdata["date"]);
-					trace(tumb.rowCount, tumb.columnCount);
+//					trace(tumb.rowCount, tumb.columnCount);
 					tumblist.removeItemAt(0);
 				
 					if (quedMusic.length != 0){
@@ -1052,6 +1114,20 @@
 						playedMusic.removeItemAt(0);
 					}
 				}
+			}
+			
+			private function onGuardTimer(evt:TimerEvent):void{
+				trace("GuardTimer : " + evt.toString());
+				trace("reloadVideoById: " + playingobj.id);
+				addStatusLog("Reload movie: " + playingobj.id);
+				tubePlayer.stopVideo();
+//				playNextMusic();
+				if (hqMode){
+					tubePlayer.loadVideoById(playingobj.id,0,"hd720");
+				}
+				else {
+					tubePlayer.loadVideoById(playingobj.id);
+				}			
 			}
 			
 			private function onIconComp(evt:Event):void{
@@ -1416,7 +1492,7 @@
 				logwin.showCloseButton = true;
 				logwin.addEventListener("close", logclose);
 				logwin.addEventListener("click", logclose);
-				PopUpManager.centerPopUp(clp);
+				PopUpManager.centerPopUp(logwin);
 			}
 			private function logclose(event:Event):void {
 				

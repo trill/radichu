@@ -986,6 +986,9 @@
 					
 					case 2:		// pause
 //						tubePlayer.playVideo();
+//						tubePlayer.stopVideo();
+						userPlay = true;
+						playNextMusic();
 					break;
 					
 					case 3:		// buffering

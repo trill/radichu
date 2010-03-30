@@ -832,8 +832,8 @@
 				youtubeBox.rawChildren.addChild(loader);
 				loader.content.addEventListener("onReady", playerReady);
 				loader.content.addEventListener("onError", playerError);
-				loader.addEventListener("onError", playerError);
-				loader.addEventListener(IOErrorEvent.IO_ERROR, playerError);
+//				loader.addEventListener("onError", playerError);
+//				loader.addEventListener(IOErrorEvent.IO_ERROR, playerError);
 				loader.content.addEventListener("onStateChange", playerStateChange);
 				loader.content.addEventListener("onPlaybackQualityChange", playerVideoPlaybackQualityChange);
 			}

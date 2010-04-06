@@ -38,11 +38,19 @@
     		import flash.events.Event;
     		import mx.formatters.DateFormatter;
 			import flash.system.Capabilities;
+			import mx.events.MenuEvent;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
 			[Bindable]
 			private var titledata:String = new String("");
+			[Bindable]
+			private var qualityDP:Array = [
+				{label:"medium"},
+				{label:"large"},
+				{label:"hd720"},
+				{label:"hd1080"}
+			];
 			
 			private var tubePlayer:Object;
 			private var loader:Loader;
@@ -55,7 +63,7 @@
 			private var responseXML:XML;
 			private var wns:Namespace = new Namespace("http://www.w3.org/2005/Atom");
 			private var sock:Socket = new Socket();
-			private const reginit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;
+//			private const reginit:RegExp = /@radioyoutube\s{1,}(.{11})\s{1,}.*#radioooo-kichi/;
 			private const regtwiterr:RegExp = /^HTTP\/1\.1 401 Unauthorized/;
 			private var urlreq:URLRequest = new URLRequest();
 			private var urlload:URLLoader = new URLLoader();
@@ -65,7 +73,7 @@
 			private const maxTumb:int = 16;
 			private var playedMusic:ArrayCollection = new ArrayCollection();
 			private var quedMusic:ArrayCollection = new ArrayCollection();
-			private var playingobj:Object = new Object();
+			private var playingobj:BindObj;// = new Object();
 			private var initflg:Boolean = true;
 			private var conf:config;
 			private var conf2:config2;
@@ -84,7 +92,6 @@
 			private var statusLog:ArrayCollection = new ArrayCollection();
 			private var playTimer:Timer;
 			private var playerQualityCheck:Boolean = false;
-			private var hqMode:Boolean = false;
 			private var userPlay:Boolean = false;
 			private var lasttime:int;
 			private var strChgCount:int = 0;
@@ -101,11 +108,14 @@
 			private var tumbloader:URLLoader = new URLLoader();
 			private var dragfrom:Boolean = false;
 			private var guardTimer:Timer;
+			private var playNextTimer:Timer = null;
+			private var qualityStr:String = "medium";
+			private var qualityVideo:String = "medium";
 
 			private static var defParams:ArrayCollection = new ArrayCollection([
-						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
-						{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
+//						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
 						{channel:"#radioooo_kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
+						{channel:"#radioyoutube", resuser:"@radioyoutube", claphash:"#radioooo" },
 					]);
 
 			private function init():void
@@ -193,6 +203,9 @@
 				Security.loadPolicyFile("http://i.ytimg.com/crossdomain.xml");
 				Security.loadPolicyFile("http://s.ytimg.com/crossdomain.xml");
 				Security.loadPolicyFile("http://s2.ytimg.com/crossdomain.xml");
+
+				ctrlGrid.setStyle("horizontalGap",1);
+				ctrlGrid.setStyle("verticalGap",1);
 				
 				openChannel();
 			}
@@ -241,7 +254,7 @@
 				}
 				startflg = false;
 				initflg = true;
-				playingobj = new Object();
+				playingobj = null;
 				initmusicList.removeAll();
 				var n:int = tumblist.length;
 				for (var i:int = 0; i < n; i++){
@@ -900,9 +913,9 @@
 				 
 				var v:int = volslider.value;
 				if (evt.delta > 0){
-					v += 10;
+					v += 2;
 				} else {
-					v -= 10;
+					v -= 2;
 				}
 				if (v > 100){
 					v = 100;
@@ -934,7 +947,7 @@
 				tubePlayer.stopVideo();
 				if (Object(evt).data == 0){
 					addStatusLog("Player error : " + Object(evt).data) + " reload";
-					tubePlayer(playingobj.id);
+					tubePlayer.loadVideoById(playingobj.id, 0);
 				} else {
 					addStatusLog("Player error : " + Object(evt).data) + "next";
 					playNextMusic();
@@ -951,11 +964,8 @@
 				switch ( Object(evt).data ) {
 					case -1:	// not start plaing
 						playerQualityCheck = false;
-//						trace(userPlay);
 						if (!userPlay && playingobj && playingobj.hasOwnProperty("title")){
 							userPlay = true;
-//							tubePlayer.playVideo();
-//							trace(lasttime);					// シークするとplay endイベントがなぜかこない？
 							tubePlayer.seekTo(lasttime,true);
 
 						} else {
@@ -976,19 +986,15 @@
 						if (!playerQualityCheck){
 							var ar:Array = tubePlayer.getAvailableQualityLevels();
 							trace("AvailableQualityLevels: " + ar.toString());
-/*							if (hqMode){
-								tubePlayer.setPlaybackQuality("hd720");
-								trace("changeQuality");
-							}*/
 						}
 						playerQualityCheck = true;
 					break;
 					
 					case 2:		// pause
-//						tubePlayer.playVideo();
-//						tubePlayer.stopVideo();
-						userPlay = true;
-						playNextMusic();
+						if (tubePlayer.getCurrentTime() == tubePlayer.getDuration()){
+							userPlay = true;
+							playNextMusic();
+						}
 					break;
 					
 					case 3:		// buffering
@@ -1005,7 +1011,9 @@
 			
 			private function playerVideoPlaybackQualityChange(evt:Event):void
 			{
-
+				trace("playerVideoQualityChange: " + Object(evt).data);
+				qualityVideo = Object(evt).data;
+				quality.label = qualityVideo + "(" + qualityStr + ")";
 			}
 			
 			private function playlistcheck():void{
@@ -1015,10 +1023,10 @@
 					var x:int;
 					var m:int = tumblist.length;
 					var c:int = 0;
-/*					for (i = 0; i < m; i++){
+					for (i = 0; i < m; i++){
 						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
 					}
-					trace("------------------------");*/
+					trace("------------------------");
 					for (i = 0;i < m; i++){
 						if (tumblist[i].twdata["user"] != sss){
 							c++;
@@ -1046,71 +1054,40 @@
 					} else {
 						trace("too many same person's requests");
 					}
-/*					for (i = 0; i < m; i++){
+					for (i = 0; i < m; i++){
 						trace(i + "\t" + tumblist[i].id + "\t" + tumblist[i].twdata["user"] + "\t" + tumblist[i].title);
-					}*/
+					}
 			}
-			
+
+			private function onCheckThumb(evt:Event):void{
+				playNextMusic();
+				playNextTimer = null;
+			}
+				
 			private function playNextMusic():void{
 				trace("playNextMusic");
 				var str:String = new String();
-				trace("music : " + playingobj.id + "->" + tumblist[0].id);
-				if ((tumblist.length != 0) && (tumblist[0].id != null)){
+				var tmpObj:BindObj = playingobj;
 
-
-					if ((playingobj != null) && playingobj.hasOwnProperty("id")){
-						trace("add to played music : " + playingobj.id);
-						playedMusic.addItem(playingobj);
-						playlistcheck();
-					}
-					try{
-						if (guardTimer != null){
-							guardTimer.stop();
-						}
-						guardTimer = new Timer(5000, 1);
-						guardTimer.addEventListener(TimerEvent.TIMER, onGuardTimer);
-						guardTimer.start();
-						trace("loadVideoById: " + tumblist[0].id);
-						if (hqMode){
-							tubePlayer.loadVideoById(tumblist[0].id,0,"hd720");
-//							tubePlayer.cueVideoById(tumblist[0].label,0,"hd720");
-						}
-						else {
-							tubePlayer.loadVideoById(tumblist[0].id);
-//							tubePlayer.cueVideoById(tumblist[0].label);
-						}
-					}
-					catch (err:Error) {
-						trace("xxxxxxloadVideoByID: " + err);
-					}
-
-					startflg = true;
-					this.btnSkip.enabled = true;
+				if ((playingobj != null) && playingobj.hasOwnProperty("id")){
+					trace("add to played music : " + playingobj.id);
+					playedMusic.addItem(playingobj);
+					playlistcheck();
+				}
+				if (playMusic(tumblist[0])){
 					playingobj = tumblist[0];
-					titledata = "<a href=\"http://youtu.be/" + tumblist[0].id + "\">" + tumblist[0].htmltitle + "</a>";
-					userurl.label = tumblist[0].twdata["user"];
-					twitimg.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
-//					twitimg.source = tumblist[0].twdata["usericon"];
-					twitimg.loaderInfo.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
-					twitimg.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
-					twitimg.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
-					twitimg.load(tumblist[0].twdata["usericon"]);
-					this.title = tumblist[0].title + " - radichu";
-					reqtime.text = "Req: " + DateConv.toDispTime(tumblist[0].twdata["date"]);
-//					trace(tumb.rowCount, tumb.columnCount);
 					tumblist.removeItemAt(0);
 				
 					if (quedMusic.length != 0){
-						var n:int = quedMusic.length - 1;
-						trace("add from qued music : " + quedMusic[n].id);
-						if ((quedMusic[n].tumburl == null) || quedMusic[n].tumburl == ""){
+						if ((quedMusic[0].tumburl == null) || quedMusic[0].tumburl == ""){
 							trace("need to get data");
-							getYoutubeDetail(quedMusic[n].id,quedMusic[n].twdata, false);
+							getYoutubeDetail(quedMusic[0].id,quedMusic[0].twdata, false);
 						} else {
 							trace("not need to get data");
-							tumblist.addItem(quedMusic[n]);
+							tumblist.addItem(quedMusic[0]);
 						}
-						quedMusic.removeItemAt(n);
+						quedMusic.removeItemAt(0);
+
 					} else if (playedMusic.length != 0) {
 						trace("add from played music : " + playedMusic[0].id);
 						tumblist.addItem(playedMusic[0]);
@@ -1119,18 +1096,66 @@
 				}
 			}
 			
+			private function playPrevMusic():void{
+				if (playedMusic.length == 0){
+					return;
+				}
+				
+				trace("playPrevMusic");
+				
+				var n:int = playedMusic.length - 1;
+				var tmpObj:BindObj = playedMusic[n];
+				if (playMusic(tmpObj)){
+					tumblist.addItemAt(playingobj, 0);
+					playingobj = tmpObj;
+					playedMusic.removeItemAt(n);
+				}
+			}
+
+			private function playMusic(obj:BindObj):Boolean{
+
+				if (tumblist.length == 0){
+					if (playNextTimer == null){
+						playNextTimer = new Timer(1500,1);
+						playNextTimer.addEventListener(TimerEvent.TIMER, onCheckThumb);
+						playNextTimer.start();
+					}
+					return false;
+				}
+				if ((obj != null) && (obj.id != null)){
+					trace("playMusic : " + obj.id);
+					if (guardTimer != null){
+						guardTimer.stop();
+					}
+					guardTimer = new Timer(5000, 1);
+					guardTimer.addEventListener(TimerEvent.TIMER, onGuardTimer);
+					guardTimer.start();
+					trace("loadVideoById: " + obj.id);
+					tubePlayer.loadVideoById(obj.id,0,qualityStr);
+				}
+
+				startflg = true;
+//				this.btnSkip.enabled = true;
+				titledata = "<a href=\"http://youtu.be/" + obj.id + "\">" + obj.htmltitle + "</a>";
+				userurl.label = obj.twdata["user"];
+				twitimg.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
+				twitimg.loaderInfo.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
+				twitimg.addEventListener(HTTPStatusEvent.HTTP_STATUS, iconstatus);
+				twitimg.loaderInfo.addEventListener(IOErrorEvent.IO_ERROR, iconerror);
+				twitimg.load(obj.twdata["usericon"]);
+				this.title = obj.title + " - radichu";
+				reqtime.text = "Req: " + DateConv.toDispTime(obj.twdata["date"]);
+				
+				return true;
+			}
+		
 			private function onGuardTimer(evt:TimerEvent):void{
 				trace("GuardTimer : " + evt.toString());
 				trace("reloadVideoById: " + playingobj.id);
 				addStatusLog("Reload movie: " + playingobj.id);
 				tubePlayer.stopVideo();
 //				playNextMusic();
-				if (hqMode){
-					tubePlayer.loadVideoById(playingobj.id,0,"hd720");
-				}
-				else {
-					tubePlayer.loadVideoById(playingobj.id);
-				}			
+				tubePlayer.loadVideoById(playingobj.id,0,qualityStr);
 			}
 			
 			private function onIconComp(evt:Event):void{
@@ -1468,14 +1493,10 @@
 				this.nativeWindow.alwaysInFront = chkTop.selected;
 			}
 			
-			private function onChkHq():void{
-				hqMode = chkHq.selected;
-				if (hqMode){
-					tubePlayer.setPlaybackQuality("hd720");
-				}
-				else {
-					tubePlayer.setPlaybackQuality("meduim");
-				}
+			private function onChkHq(event:MenuEvent):void{
+				tubePlayer.setPlaybackQuality(event.label);
+				qualityStr = event.label;
+				quality.label = qualityVideo + "(" + qualityStr + ")";
 			}
 			
 			private function onStatusBarClick(event:Event):void{
@@ -1512,6 +1533,22 @@
 				}
 				this.status = str;
 			}
+			
+			private function onBtnPlay():void{
+				tubePlayer.playVideo();
+			}
+			private function onBtnPause():void{
+				tubePlayer.pauseVideo();
+			}
+			private function onBtnPrev():void{
+				if (tubePlayer.getCurrentTime() > 4){
+					tubePlayer.seekTo(0, true);
+				}
+				else {
+					userPlay = true;
+					playPrevMusic();
+				}
+			}
 		]]>
 
 	</mx:Script>
@@ -1520,7 +1557,7 @@
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
 			<mx:HBox height="100%">
 				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
-					<mx:VSlider id="volslider" change="onVolChg(event)" enabled="true" snapInterval="5" minimum="0" maximum="100" liveDragging="true" allowTrackClick="true" height="100%"/>
+					<mx:VSlider id="volslider" change="onVolChg(event)" enabled="true" snapInterval="1" minimum="0" maximum="100" liveDragging="true" allowTrackClick="true" height="100%"/>
 					<mx:Button toggle="true" enabled="false" click="onMuteBtn()" id="btnMute" toolTip="Mute"
 						upSkin="@Embed(source='../volume_normal_b.png')" 
 						overSkin="@Embed(source='../volume_normal_b.png')"
@@ -1532,17 +1569,17 @@
 				</mx:VBox>
 				<mx:VBox height="100%" width="100%" horizontalAlign="center">
 					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5" verticalAlign="middle">
-						<mx:Button id="btnSkip" label="SKIP" enabled="false" click="onSkipBtn()"/>
-						<mx:Button label="HQ" toggle="true" selected="false" enabled="true" click="onChkHq()" id="chkHq" toolTip="HQ mode"
-						upSkin="@Embed(source='nq.png')" 
-						overSkin="@Embed(source='nq.png')"
-						downSkin="@Embed(source='nq.png')"
-						selectedUpSkin="@Embed(source='hq.png')" 
-						selectedOverSkin="@Embed(source='hq.png')"
-						selectedDownSkin="@Embed(source='hq.png')"
-						width="16" height="16"/>
-						<mx:Button label="aiF" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" toolTip="Always in front"/>
-						<mx:Button id="btnConf" label="cfg" enabled="true" click="onConfBtn()"/>
+						<mx:PopUpMenuButton itemClick="onChkHq(event)" showRoot="true" id="quality" dataProvider="{qualityDP}" fontSize="9" fontFamily="Arial"/>
+						<mx:Button label="aiF" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" 
+							upSkin="@Embed(source='../aif1.png')" 
+							overSkin="@Embed(source='../aif1.png')"
+							downSkin="@Embed(source='../aif1.png')"
+							selectedUpSkin="@Embed(source='../aif2.png')" 
+							selectedOverSkin="@Embed(source='../aif2.png')"
+							selectedDownSkin="@Embed(source='../aif2.png')"
+							toolTip="Always in front"
+							width="16" height="16"/>
+						<mx:Button id="btnConf" enabled="true" click="onConfBtn()" icon="@Embed(source='../config.png')" width="16" height="16" toolTip="Configure"/>
 					</mx:HBox>
 					<mx:VBox height="100%" width="200">
 						<mx:TextArea id="titleArea" htmlText="{titledata}" width="100%" height="100%" editable="false" cornerRadius="5" fontWeight="bold" fontSize="12" wordWrap="true" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc"/>
@@ -1563,9 +1600,29 @@
 				</mx:VBox>
 			</mx:HBox>
 		</mx:HBox>
-		<mx:TileList id="tumb" height="76" maxHeight="76" width="100%" dataProvider="{tumblist}" itemRenderer="thumbnail"
-			dataTipFunction="tumbtipfunc" showDataTips="true" labelFunction="tumbfunc"
-			 dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"
-			 cornerRadius="5" borderThickness="5" borderColor="#cccccc" alternatingItemColors="[#cccccc, #cccccc]" backgroundColor="#cccccc"/>
+		<mx:HBox width="100%" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc" verticalAlign="middle">
+			<mx:TileList id="tumb" height="76" maxHeight="76" width="100%" dataProvider="{tumblist}" itemRenderer="thumbnail"
+				dataTipFunction="tumbtipfunc" showDataTips="true" labelFunction="tumbfunc"
+				dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"
+				cornerRadius="5" borderThickness="5" borderColor="#cccccc" alternatingItemColors="[#cccccc, #cccccc]" backgroundColor="#cccccc"/>
+			<mx:Grid id="ctrlGrid">
+				<mx:GridRow>
+					<mx:GridItem>
+						<mx:Button id="btnPrev" enabled="true" click="onBtnPrev()" icon="@Embed(source='previous.png')" width="32" height="32" toolTip="Play Previous"/>
+					</mx:GridItem>
+					<mx:GridItem>
+						<mx:Button id="btnFwd" enabled="true" click="onSkipBtn()" icon="@Embed(source='forward.png')" width="32" height="32" toolTip="Play next"/>
+					</mx:GridItem>
+				</mx:GridRow>
+				<mx:GridRow>
+					<mx:GridItem>
+						<mx:Button id="btnPlay" enabled="true" click="onBtnPlay()" icon="@Embed(source='play.png')" width="32" height="32" toolTip="Play"/>
+					</mx:GridItem>
+					<mx:GridItem>
+						<mx:Button id="btnPause" enabled="true" click="onBtnPause()" icon="@Embed(source='pause.png')" width="32" height="32" toolTip="Pause"/>
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</mx:HBox>
 	</mx:VBox>
 </mx:WindowedApplication>

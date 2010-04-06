@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.16</version> 
+       <version>Alpha 0.1.17</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：
 ★XP:		C:\Documents and Settings\(ユーザ名)\Application Data\radichu.XXXXXXXXX(不定)
 ★Vista/7:	C:\ユーザー\(ユーザ名)\AppData\Roaming\radichu.XXXXXXXXXX(不定)
 ★のディレクトリを、radichuが起動していない状態で削除してみて下さい。
+------------------------------------------------------------------------------------------
+Version 0.1.17 <- 0.1.16 (2010/04/06)
+	* 巻き戻し(前曲再生)・ポーズ・再生ボタン追加、スキップボタン移動
+	* hd1080対応、再生クオリティ選択可能に
+	　(左が再生中クオリティ、括弧内が選択再生クオリティ)
+	* その他細々と修正
 ------------------------------------------------------------------------------------------
 Version 0.1.16 <- 0.1.15 (2010/03/25)
 	* 次曲再生がうまくできなくなることに対して仮対処

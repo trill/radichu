@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 0.1.17</version> 
+       <version>Alpha 0.1.18</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：

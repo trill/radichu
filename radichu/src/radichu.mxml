@@ -1593,7 +1593,8 @@
 			}
 			private function onBtnFull():void{
 				if (!fullMode){
-					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+//					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+					this.stage.displayState = StageDisplayState.FULL_SCREEN_INTERACTIVE;
 				}
 				else {
 					this.stage.displayState = StageDisplayState.NORMAL;

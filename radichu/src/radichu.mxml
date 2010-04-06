@@ -39,6 +39,7 @@
     		import mx.formatters.DateFormatter;
 			import flash.system.Capabilities;
 			import mx.events.MenuEvent;
+			import flash.events.FullScreenEvent;
 
 			[Bindable]
 			private var tumblist:ArrayCollection = new ArrayCollection();
@@ -111,6 +112,8 @@
 			private var playNextTimer:Timer = null;
 			private var qualityStr:String = "medium";
 			private var qualityVideo:String = "medium";
+			private var fullMode:Boolean = false;
+			private var fullTimer:Timer = null;
 
 			private static var defParams:ArrayCollection = new ArrayCollection([
 //						{channel:"#radioooo-kichi", resuser:"@radioyoutube", claphash:"#radioooo" },
@@ -866,6 +869,11 @@
 				g.beginFill (0x000000, 0.0);
 				g.drawRect ( 0, 0 , movieHBox.width , movieHBox.height);
 				g.endFill ();
+				dropArea.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+//				box1.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+//				box2.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+//				back.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+				dropArea.stage.addEventListener(FullScreenEvent.FULL_SCREEN, onFullScreen);
 //				appWin.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 //				this.stage.addEventListener(MouseEvent.MOUSE_WHEEL, mouseWheel);
 //				this.stage.addEventListener(KeyboardEvent.KEY_UP, onPaste);
@@ -1549,13 +1557,87 @@
 					playPrevMusic();
 				}
 			}
+			private function onFullScreen(event:FullScreenEvent):void{
+				fullMode = event.fullScreen;
+				if (event.fullScreen){
+					box1.visible = false;
+					box2.visible = false;
+					this.statusBar.visible = false;
+					var g : Graphics = dropArea.graphics;
+					g.beginFill (0x000000, 0.0);
+					g.drawRect ( 0, 0 , this.stage.fullScreenWidth, this.stage.fullScreenHeight);
+					g.endFill ();
+					tubePlayer.x = -5;
+					tubePlayer.y = -5;
+					tubePlayer.setSize(this.stage.fullScreenWidth, this.stage.fullScreenHeight);
+					fullTimer = new Timer(3000, 1);
+					fullTimer.addEventListener(TimerEvent.TIMER, onFullTimer);
+					fullTimer.start();
+				}
+				else {
+					tubePlayer.setSize(youtubeBox.width, youtubeBox.height);
+					box1.visible = true;
+					box1.alpha = 1;
+					box2.visible = true;
+					box2.alpha = 1;
+					this.statusBar.visible = true;
+					tubePlayer.x = 0;
+					tubePlayer.y = 0;
+					if (fullTimer != null){
+						fullTimer.stop();
+						fullTimer = null;
+					}
+					flash.ui.Mouse.show();
+
+				}
+			}
+			private function onBtnFull():void{
+				if (!fullMode){
+					this.stage.displayState = StageDisplayState.FULL_SCREEN;
+				}
+				else {
+					this.stage.displayState = StageDisplayState.NORMAL;
+				}
+			}
+			
+			private function onMouseMove(event:MouseEvent):void{
+				if (!fullMode){
+					return;
+				}
+				
+				fullTimer.stop();
+				flash.ui.Mouse.show();
+				trace(event.toString());
+//				trace(event.currentTarget.mouseX);
+				if (event.stageX > this.stage.fullScreenWidth - 220){
+					box1.alpha = 0.5;
+					box1.visible = true;
+				}
+				else {
+					box1.visible = false;
+				}
+				if (event.stageY > this.stage.fullScreenHeight - 90){
+					box2.alpha = 0.5;
+					box2.visible = true;
+				}
+				else {
+					box2.visible = false;
+				}
+				if (!box1.visible && !box2.visible){
+					fullTimer.start();
+				}
+			}
+			
+			private function onFullTimer(event:TimerEvent):void{
+				flash.ui.Mouse.hide();
+			}
 		]]>
 
 	</mx:Script>
 	<mx:VBox id="back" left="5" top="5" right="5" bottom="5" horizontalAlign="center" verticalAlign="bottom">
 		<mx:HBox id="movieHBox" height="100%" width="100%">
 			<mx:HBox id="youtubeBox" top="10" left="10" width="100%" height="100%" borderColor="#cccccc" backgroundColor="#cccccc" cornerRadius="5" borderStyle="solid" borderThickness="5" horizontalAlign="center" verticalAlign="middle"/>	
-			<mx:HBox height="100%">
+			<mx:HBox id="box1" height="100%">
 				<mx:VBox height="100%" horizontalAlign="center" borderStyle="solid" borderThickness="5" cornerRadius="5" borderColor="#cccccc" backgroundColor="#cccccc">
 					<mx:VSlider id="volslider" change="onVolChg(event)" enabled="true" snapInterval="1" minimum="0" maximum="100" liveDragging="true" allowTrackClick="true" height="100%"/>
 					<mx:Button toggle="true" enabled="false" click="onMuteBtn()" id="btnMute" toolTip="Mute"
@@ -1570,6 +1652,7 @@
 				<mx:VBox height="100%" width="100%" horizontalAlign="center">
 					<mx:HBox borderStyle="solid" borderThickness="5" borderColor="#cccccc" width="100%" horizontalAlign="center"  backgroundColor="#cccccc" cornerRadius="5" verticalAlign="middle">
 						<mx:PopUpMenuButton itemClick="onChkHq(event)" showRoot="true" id="quality" dataProvider="{qualityDP}" fontSize="9" fontFamily="Arial"/>
+						<mx:Button icon="@Embed(source='full.png')" width="16" height="16" id="full" click="onBtnFull()"/>
 						<mx:Button label="aiF" toggle="true" selected="false" enabled="true" click="onChkTop()" id="chkTop" 
 							upSkin="@Embed(source='../aif1.png')" 
 							overSkin="@Embed(source='../aif1.png')"
@@ -1600,7 +1683,7 @@
 				</mx:VBox>
 			</mx:HBox>
 		</mx:HBox>
-		<mx:HBox width="100%" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc" verticalAlign="middle">
+		<mx:HBox id="box2" width="100%" borderStyle="solid" borderThickness="5" borderColor="#cccccc" backgroundColor="#cccccc" verticalAlign="middle">
 			<mx:TileList id="tumb" height="76" maxHeight="76" width="100%" dataProvider="{tumblist}" itemRenderer="thumbnail"
 				dataTipFunction="tumbtipfunc" showDataTips="true" labelFunction="tumbfunc"
 				dragEnabled="true" dropEnabled="true" dragMoveEnabled="true"

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?> 
      <update xmlns="http://ns.adobe.com/air/framework/update/description/1.0"> 
-       <version>Alpha 1.2.3</version> 
+       <version>Alpha 1.2.4</version> 
        <url>http://github.com/trill/radichu/raw/master/radichu/radichu.air</url> 
        <description><![CDATA[
 ★バージョンアップしたらうまく動かなくなった場合：
@@ -12,6 +12,9 @@ TODO:
 	×前の曲再生がうまくできません(調査中)
 	？サムネイル表示を切り替える？
 	？レイアウト調整
+------------------------------------------------------------------------------------------
+Version 1.2.4 (2011/01/18)
+	* 凡ミス修正その２
 ------------------------------------------------------------------------------------------
 Version 1.2.3 (2011/01/18)
 	* 凡ミス修正
